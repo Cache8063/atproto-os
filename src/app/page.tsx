@@ -1,5 +1,5 @@
-import FullDashboard from '@/components/full-dashboard'
+import DashboardWithAuth from '@/components/dashboard-with-auth'
 
 export default function Home() {
-  return <FullDashboard />
+  return <DashboardWithAuth />
 }
