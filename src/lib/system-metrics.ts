@@ -72,18 +72,18 @@ class SystemMetricsService {
         si.currentLoad()
       ])
 
-      // Calculate CPU usage
+      // Calculate CPU usage with safe access
       const cpuUsage = loadData.currentLoad || 0
 
-      // Get primary disk (usually first one)
-      const primaryDisk = diskData[0] || {
+      // Get primary disk (usually first one) with safe defaults
+      const primaryDisk = Array.isArray(diskData) && diskData.length > 0 ? diskData[0] : {
         used: 0,
         size: 1,
         available: 1
       }
 
-      // Get primary network interface stats
-      const primaryNetwork = networkData[0] || {
+      // Get primary network interface stats with safe defaults
+      const primaryNetwork = Array.isArray(networkData) && networkData.length > 0 ? networkData[0] : {
         rx_bytes: 0,
         tx_bytes: 0,
         rx_packets: 0,
@@ -95,28 +95,28 @@ class SystemMetricsService {
           usage: Math.round(cpuUsage * 100) / 100,
           cores: cpuData.cores || 1,
           speed: cpuData.speed || 0,
-          temperature: loadData.cpuTemperature || undefined
+          temperature: (loadData as any).cpuTemperature || undefined
         },
         memory: {
-          used: memData.used,
-          total: memData.total,
-          percentage: Math.round((memData.used / memData.total) * 100 * 100) / 100,
-          available: memData.available
+          used: memData.used || 0,
+          total: memData.total || 1,
+          percentage: Math.round(((memData.used || 0) / (memData.total || 1)) * 100 * 100) / 100,
+          available: memData.available || 0
         },
         disk: {
-          used: primaryDisk.used,
-          total: primaryDisk.size,
-          percentage: Math.round((primaryDisk.used / primaryDisk.size) * 100 * 100) / 100,
-          available: primaryDisk.available
+          used: primaryDisk.used || 0,
+          total: primaryDisk.size || 1,
+          percentage: Math.round(((primaryDisk.used || 0) / (primaryDisk.size || 1)) * 100 * 100) / 100,
+          available: primaryDisk.available || 0
         },
         network: {
-          bytesReceived: primaryNetwork.rx_bytes || 0,
-          bytesSent: primaryNetwork.tx_bytes || 0,
-          packetsReceived: primaryNetwork.rx_packets || 0,
-          packetsSent: primaryNetwork.tx_packets || 0
+          bytesReceived: (primaryNetwork as any).rx_bytes || 0,
+          bytesSent: (primaryNetwork as any).tx_bytes || 0,
+          packetsReceived: (primaryNetwork as any).rx_packets || 0,
+          packetsSent: (primaryNetwork as any).tx_packets || 0
         },
-        uptime: osInfo.uptime || 0,
-        processes: processData.all?.length || 0,
+        uptime: (osInfo as any).uptime || 0,
+        processes: (processData as any).all?.length || 0,
         loadAverage: loadData.avgLoad ? [
           loadData.avgLoad,
           loadData.avgLoad,
@@ -148,15 +148,15 @@ class SystemMetricsService {
     try {
       const processData = await si.processes()
       
-      return (processData.list || [])
-        .filter(proc => proc.cpu > 0) // Only processes using CPU
-        .sort((a, b) => (b.cpu || 0) - (a.cpu || 0)) // Sort by CPU usage
+      return ((processData as any).list || [])
+        .filter((proc: any) => proc.cpu > 0) // Only processes using CPU
+        .sort((a: any, b: any) => (b.cpu || 0) - (a.cpu || 0)) // Sort by CPU usage
         .slice(0, limit)
-        .map(proc => ({
+        .map((proc: any) => ({
           pid: proc.pid || 0,
           name: proc.name || 'Unknown',
           cpu: Math.round((proc.cpu || 0) * 100) / 100,
-          memory: Math.round((proc.memory || 0) * 100) / 100,
+          memory: Math.round(((proc as any).memory || 0) * 100) / 100,
           state: proc.state || 'unknown'
         }))
     } catch (error) {
@@ -208,10 +208,10 @@ class SystemMetricsService {
         ip4: iface.ip4 || '',
         ip6: iface.ip6 || '',
         mac: iface.mac || '',
-        speed: iface.speed || 0,
-        duplex: iface.duplex || '',
-        mtu: iface.mtu || 0,
-        state: iface.operstate || 'unknown'
+        speed: (iface as any).speed || 0,
+        duplex: (iface as any).duplex || '',
+        mtu: (iface as any).mtu || 0,
+        state: (iface as any).operstate || 'unknown'
       }))
     } catch (error) {
       console.error('Error fetching network interfaces:', error)

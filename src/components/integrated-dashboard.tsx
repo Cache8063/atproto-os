@@ -1,6 +1,6 @@
 // src/components/integrated-dashboard.tsx
 'use client'
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Terminal, 
@@ -17,7 +17,8 @@ import {
   User,
   Shield,
   Wifi,
-  WifiOff
+  WifiOff,
+  LucideIcon
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { LoginForm } from '@/components/auth/login-form';
@@ -32,7 +33,14 @@ interface Alert {
   timestamp: Date;
 }
 
-const Widget = ({ title, icon: Icon, children, className = "" }) => {
+interface WidgetProps {
+  title: string;
+  icon: LucideIcon;
+  children: ReactNode;
+  className?: string;
+}
+
+const Widget: React.FC<WidgetProps> = ({ title, icon: Icon, children, className = "" }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -48,7 +56,7 @@ const Widget = ({ title, icon: Icon, children, className = "" }) => {
   );
 };
 
-const SystemMetricsWidget = () => {
+const SystemMetricsWidget: React.FC = () => {
   const { metrics, loading, error } = useSystemMetrics(2000); // Update every 2 seconds
 
   if (loading && !metrics) {
@@ -84,14 +92,14 @@ const SystemMetricsWidget = () => {
       <div className="grid grid-cols-2 gap-4">
         <div className="text-center">
           <div className="text-2xl font-bold text-blue-400">
-            {metrics?.cpu.usage.toFixed(1)}%
+            {metrics?.cpu.usage.toFixed(1) || '0.0'}%
           </div>
           <div className="text-sm text-gray-400">CPU Usage</div>
-          <div className="text-xs text-gray-500">{metrics?.cpu.cores} cores</div>
+          <div className="text-xs text-gray-500">{metrics?.cpu.cores || 0} cores</div>
         </div>
         <div className="text-center">
           <div className="text-2xl font-bold text-green-400">
-            {metrics?.memory.percentage.toFixed(1)}%
+            {metrics?.memory.percentage.toFixed(1) || '0.0'}%
           </div>
           <div className="text-sm text-gray-400">Memory</div>
           <div className="text-xs text-gray-500">
@@ -100,7 +108,7 @@ const SystemMetricsWidget = () => {
         </div>
         <div className="text-center">
           <div className="text-2xl font-bold text-yellow-400">
-            {metrics?.disk.percentage.toFixed(1)}%
+            {metrics?.disk.percentage.toFixed(1) || '0.0'}%
           </div>
           <div className="text-sm text-gray-400">Disk Usage</div>
           <div className="text-xs text-gray-500">
@@ -119,7 +127,7 @@ const SystemMetricsWidget = () => {
   );
 };
 
-const ATProtoStatusWidget = () => {
+const ATProtoStatusWidget: React.FC = () => {
   const { session } = useAuth();
   const [serverHealth, setServerHealth] = useState<{ status: string; latency: number } | null>(null);
   const [federationStatus, setFederationStatus] = useState<any>(null);
@@ -193,7 +201,7 @@ const ATProtoStatusWidget = () => {
   );
 };
 
-const AlertsWidget = () => {
+const AlertsWidget: React.FC = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const { metrics } = useSystemMetrics();
 
@@ -275,7 +283,7 @@ const AlertsWidget = () => {
   );
 };
 
-const UserProfileWidget = () => {
+const UserProfileWidget: React.FC = () => {
   const { session, logout } = useAuth();
   const [profile, setProfile] = useState<any>(null);
 
@@ -339,7 +347,7 @@ const UserProfileWidget = () => {
   );
 };
 
-export default function IntegratedDashboard() {
+const IntegratedDashboard: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
   const [mounted, setMounted] = useState(false);
@@ -505,4 +513,6 @@ export default function IntegratedDashboard() {
       </AnimatePresence>
     </div>
   );
-}
+};
+
+export default IntegratedDashboard;
