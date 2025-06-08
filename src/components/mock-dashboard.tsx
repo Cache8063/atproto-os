@@ -1,3 +1,4 @@
+'use client'
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -18,7 +19,6 @@ import {
   Shield,
   User
 } from 'lucide-react';
-// Mock AT Protocol implementation for demonstration
 
 // Types
 interface AuthSession {
@@ -554,7 +554,11 @@ const Dashboard: React.FC = () => {
                   {mockAlerts.map((alert) => (
                     <div key={alert.id} className="flex items-start space-x-2 p-2 rounded">
                       <div className={`w-2 h-2 rounded-full mt-2 ${
-                        alert.type === 'error' ? 'bg-red-400' :
+                        const mockAlerts = [
+                       { id: 1, type: 'success', message: 'Connected to Demo AT Protocol', time: '1 min ago' },
+                       { id: 2, type: 'info', message: 'Mock profile data loaded', time: '3 min ago' },
+                       { id: 3, type: 'warning', message: 'Demo environment active', time: '5 min ago' }
+  ];
                         alert.type === 'warning' ? 'bg-yellow-400' : 
                         alert.type === 'success' ? 'bg-green-400' : 'bg-blue-400'
                       }`} />
@@ -616,7 +620,7 @@ const AuthRequiredDashboard: React.FC = () => {
 };
 
 // Main App Component
-const ATProtocolDashboard: React.FC = () => {
+const MockATProtocolDashboard: React.FC = () => {
   return (
     <AuthProvider>
       <AuthRequiredDashboard />
@@ -624,4 +628,4 @@ const ATProtocolDashboard: React.FC = () => {
   );
 };
 
-export default ATProtocolDashboard;
+export default MockATProtocolDashboard;
