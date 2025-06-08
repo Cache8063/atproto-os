@@ -1,5 +1,5 @@
-import MockATProtocolDashboard from '@/components/mock-dashboard'
+import FullDashboard from '@/components/full-dashboard'
 
 export default function Home() {
-  return <MockATProtocolDashboard />
+  return <FullDashboard />
 }
