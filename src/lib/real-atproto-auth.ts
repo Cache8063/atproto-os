@@ -6,7 +6,6 @@ export interface AuthSession {
   handle: string
   did: string
   active: boolean
-  email?: string
 }
 
 export interface AuthCredentials {
@@ -19,19 +18,16 @@ class RealATProtoAuth {
   private session: AuthSession | null = null
 
   constructor() {
+    // YOUR CUSTOM PDS!
     this.agent = new BskyAgent({
-      service: 'https://bsky.social' // Real Bluesky server
+      service: 'https://arcnode.xyz'
     })
   }
 
-  async login(credentials: AuthCredentials): Promise<AuthSession> {
+  async login(credentials: AuthCredentials): Promise<{ success: boolean; session?: AuthSession; profile?: any }> {
     try {
-      console.log('Attempting real AT Protocol login...')
-      
-      const response = await this.agent.login({
-        identifier: credentials.identifier,
-        password: credentials.password
-      })
+      console.log('Connecting to PDS:', 'https://arcnode.xyz')
+      const response = await this.agent.login(credentials)
       
       if (response.success && this.agent.session) {
         this.session = {
@@ -39,63 +35,37 @@ class RealATProtoAuth {
           refreshJwt: this.agent.session.refreshJwt,
           handle: this.agent.session.handle,
           did: this.agent.session.did,
-          active: this.agent.session.active || true,
-          email: response.data.email
+          active: this.agent.session.active || true
         }
 
-        // Store real session
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('real_atproto_session', JSON.stringify(this.session))
+        // Fetch user profile from YOUR PDS
+        let profile = null
+        try {
+          const profileResponse = await this.agent.getProfile({
+            actor: this.session.handle
+          })
+          profile = profileResponse.data
+          console.log('Profile loaded from arcnode.xyz:', profile)
+        } catch (error) {
+          console.error('Error fetching profile from arcnode.xyz:', error)
         }
 
-        console.log('Real AT Protocol login successful!', {
-          handle: this.session.handle,
-          did: this.session.did
-        })
-
-        return this.session
+        return {
+          success: true,
+          session: this.session,
+          profile
+        }
       } else {
-        throw new Error('Login failed - invalid response')
+        throw new Error('Login failed')
       }
     } catch (error) {
-      console.error('Real AT Protocol login failed:', error)
-      throw new Error(`Authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    }
-  }
-
-  async getProfile(): Promise<any> {
-    if (!this.session) throw new Error('Not authenticated')
-    
-    try {
-      const response = await this.agent.getProfile({
-        actor: this.session.handle
-      })
-      return response.data
-    } catch (error) {
-      console.error('Error fetching real profile:', error)
+      console.error('AT Protocol login error to arcnode.xyz:', error)
       throw error
     }
   }
 
   async logout(): Promise<void> {
     this.session = null
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('real_atproto_session')
-    }
-  }
-
-  loadSession(): void {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('real_atproto_session')
-      if (stored) {
-        try {
-          this.session = JSON.parse(stored)
-        } catch (error) {
-          console.error('Failed to load stored session:', error)
-          localStorage.removeItem('real_atproto_session')
-        }
-      }
-    }
   }
 
   isAuthenticated(): boolean {
@@ -106,17 +76,15 @@ class RealATProtoAuth {
     return this.session
   }
 
-  // Check connection to AT Protocol servers
-  async checkServerHealth(): Promise<{ status: string; latency: number }> {
-    const startTime = Date.now()
-    
+  // Method to check PDS health
+  async checkPDSHealth(): Promise<boolean> {
     try {
-      await this.agent.com.atproto.server.describeServer()
-      const latency = Date.now() - startTime
-      return { status: 'online', latency }
+      // Basic health check - try to reach the service
+      const response = await fetch('https://arcnode.xyz/.well-known/atproto-did')
+      return response.ok
     } catch (error) {
-      const latency = Date.now() - startTime
-      return { status: 'offline', latency }
+      console.error('PDS health check failed:', error)
+      return false
     }
   }
 }
