@@ -1,5 +1,5 @@
-import FullDashboard from '@/components/full-dashboard'
+import IntegratedDashboard from '@/components/integrated-dashboard'
 
 export default function Home() {
-  return <FullDashboard />
+  return <IntegratedDashboard />
 }
