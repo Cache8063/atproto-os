@@ -1,5 +1,9 @@
-import DashboardWithAuth from '@/components/dashboard-with-auth'
+// FROM:
+import FullDashboard from '@/components/full-dashboard'
+
+// TO:
+import MockATProtocolDashboard from '@/components/mock-dashboard'
 
 export default function Home() {
-  return <DashboardWithAuth />
+  return <MockATProtocolDashboard />
 }
