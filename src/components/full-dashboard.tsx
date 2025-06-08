@@ -472,8 +472,8 @@ function Dashboard({ session, serviceEndpoint, onLogout }: {
   )
 }
 
-// Main App Component
-export default function FullDashboard() {
+// Main App Component - Default Export
+const FullDashboard = () => {
   const [session, setSession] = useState<AuthSession | null>(null)
   const [loading, setLoading] = useState(false)
   const [serviceEndpoint, setServiceEndpoint] = useState<string>('https://bsky.social')
@@ -525,3 +525,5 @@ export default function FullDashboard() {
 
   return <Dashboard session={session} serviceEndpoint={serviceEndpoint} onLogout={handleLogout} />
 }
+
+export default FullDashboard
