@@ -1,182 +1,284 @@
-// Add this to your existing full-dashboard.tsx file
+'use client'
+import React, { useState, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  Terminal, 
+  Server, 
+  MessageSquare, 
+  Activity, 
+  AlertTriangle, 
+  Users,
+  Settings,
+  Bell,
+  Menu,
+  X,
+  Eye,
+  EyeOff,
+  LogIn,
+  LogOut,
+  User
+} from 'lucide-react'
+import { BskyAgent } from '@atproto/api'
 
-import { BskyAgent, AppBskyFeedDefs } from '@atproto/api'
-
-// Add to your existing interfaces section
-interface Post {
-  uri: string
-  cid: string
-  author: {
-    handle: string
-    displayName?: string
-    avatar?: string
-  }
-  record: {
-    text: string
-    createdAt: string
-  }
-  replyCount: number
-  repostCount: number
-  likeCount: number
-  indexedAt: string
+// Auth Types
+interface AuthSession {
+  accessJwt: string
+  refreshJwt: string
+  handle: string
+  did: string
+  active: boolean
 }
 
-// Feed Widget Component - Add this with your other components
-const FeedWidget = ({ agent }: { agent: BskyAgent | null }) => {
-  const [posts, setPosts] = useState<Post[]>([])
-  const [loading, setLoading] = useState(false)
+interface AuthCredentials {
+  identifier: string
+  password: string
+  service?: string
+}
+
+// Login Modal Component
+function LoginModal({ onLogin, loading }: { 
+  onLogin: (credentials: AuthCredentials) => Promise<void>
+  loading: boolean 
+}) {
+  const [identifier, setIdentifier] = useState('')
+  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [customService, setCustomService] = useState('')
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
-  const fetchFeed = async () => {
-    if (!agent) return
-    
-    setLoading(true)
+  const handleSubmit = async () => {
     setError('')
-    
+
+    if (!identifier || !password) {
+      setError('Please fill in all fields')
+      return
+    }
+
     try {
-      const response = await agent.getTimeline({
-        limit: 10
+      // Determine service endpoint
+      let serviceEndpoint = 'https://bsky.social'
+      
+      if (customService) {
+        serviceEndpoint = customService.startsWith('http') ? customService : `https://${customService}`
+      } else if (identifier.includes('.') && !identifier.includes('@')) {
+        // Handle-based service detection
+        const handleParts = identifier.split('.')
+        if (handleParts.length >= 2) {
+          const domain = handleParts.slice(-2).join('.')
+          if (domain !== 'bsky.social') {
+            serviceEndpoint = `https://${domain}`
+          }
+        }
+      }
+
+      await onLogin({ 
+        identifier, 
+        password, 
+        service: serviceEndpoint 
       })
-      
-      const formattedPosts = response.data.feed.map((item: any) => ({
-        uri: item.post.uri,
-        cid: item.post.cid,
-        author: {
-          handle: item.post.author.handle,
-          displayName: item.post.author.displayName,
-          avatar: item.post.author.avatar
-        },
-        record: {
-          text: item.post.record.text,
-          createdAt: item.post.record.createdAt
-        },
-        replyCount: item.post.replyCount || 0,
-        repostCount: item.post.repostCount || 0,
-        likeCount: item.post.likeCount || 0,
-        indexedAt: item.post.indexedAt
-      }))
-      
-      setPosts(formattedPosts)
-    } catch (err) {
-      console.error('Feed fetch error:', err)
-      setError('Failed to load feed')
-    } finally {
-      setLoading(false)
+    } catch (error) {
+      setError('Invalid credentials, connection error, or unsupported PDS')
     }
-  }
-
-  useEffect(() => {
-    if (agent) {
-      fetchFeed()
-    }
-  }, [agent])
-
-  const formatRelativeTime = (dateString: string) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffMins = Math.floor(diffMs / 60000)
-    
-    if (diffMins < 1) return 'just now'
-    if (diffMins < 60) return `${diffMins}m`
-    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h`
-    return `${Math.floor(diffMins / 1440)}d`
   }
 
   return (
-    <Widget title="Your Bluesky Feed" icon={MessageSquare} className="lg:col-span-2">
-      <div className="space-y-4 max-h-96 overflow-y-auto">
-        {loading && (
-          <div className="flex items-center justify-center py-8">
-            <div className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-            <span className="ml-2 text-gray-400">Loading your timeline...</span>
-          </div>
-        )}
-        
-        {error && (
-          <div className="text-red-400 text-sm bg-red-900/20 border border-red-800 rounded p-3">
-            {error}
-          </div>
-        )}
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+    >
+      <motion.div
+        initial={{ scale: 0.95, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        className="bg-gray-800 rounded-xl border border-gray-700 p-6 w-full max-w-md"
+      >
+        <div className="flex items-center space-x-3 mb-6">
+          <LogIn className="w-6 h-6 text-blue-400" />
+          <h2 className="text-xl font-bold text-white">Login to AT Protocol</h2>
+        </div>
 
-        {!loading && !error && posts.length === 0 && (
-          <div className="text-center py-8 text-gray-400">
-            <MessageSquare className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p>No posts in your timeline</p>
-          </div>
-        )}
-
-        {posts.map((post) => (
-          <div key={post.uri} className="border border-gray-700 rounded-lg p-4 hover:bg-gray-700/20 transition-colors">
-            <div className="flex items-start space-x-3">
-              <div className="flex-shrink-0">
-                {post.author.avatar ? (
-                  <img 
-                    src={post.author.avatar} 
-                    alt={post.author.handle}
-                    className="w-10 h-10 rounded-full"
-                  />
-                ) : (
-                  <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
-                    <User className="w-5 h-5 text-gray-400" />
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center space-x-2 mb-1">
-                  <span className="font-semibold text-white truncate">
-                    {post.author.displayName || post.author.handle}
-                  </span>
-                  <span className="text-gray-400 text-sm">
-                    @{post.author.handle}
-                  </span>
-                  <span className="text-gray-500 text-sm">
-                    {formatRelativeTime(post.record.createdAt)}
-                  </span>
-                </div>
-                
-                <p className="text-gray-300 text-sm leading-relaxed mb-3">
-                  {post.record.text}
-                </p>
-                
-                <div className="flex items-center space-x-6 text-gray-400 text-xs">
-                  <div className="flex items-center space-x-1">
-                    <MessageSquare className="w-4 h-4" />
-                    <span>{post.replyCount}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    <span>{post.repostCount}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                    </svg>
-                    <span>{post.likeCount}</span>
-                  </div>
-                </div>
-              </div>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Handle or Email
+            </label>
+            <input
+              type="text"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+              placeholder="your-handle.bsky.social or email@example.com"
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={loading}
+            />
+            <div className="mt-1 text-xs text-gray-400">
+              Supports handles from any AT Protocol PDS
             </div>
           </div>
-        ))}
-        
-        {!loading && posts.length > 0 && (
+
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">
+              Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                placeholder="Your password"
+                className="w-full px-3 py-2 pr-10 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-2 text-gray-400 hover:text-gray-300"
+                disabled={loading}
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="text-sm text-blue-400 hover:text-blue-300 mb-2"
+            >
+              {showAdvanced ? 'Hide' : 'Show'} Advanced Settings
+            </button>
+            
+            {showAdvanced && (
+              <div className="space-y-3 p-3 bg-gray-900/50 rounded border border-gray-600">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Custom PDS Service (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={customService}
+                    onChange={(e) => setCustomService(e.target.value)}
+                    placeholder="https://your-pds.example.com or pds.example.com"
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    disabled={loading}
+                  />
+                  <div className="mt-1 text-xs text-gray-400">
+                    Leave empty to auto-detect from handle or use Bluesky
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="text-red-400 text-sm bg-red-900/20 border border-red-800 rounded p-3">
+              {error}
+            </div>
+          )}
+
           <button
-            onClick={fetchFeed}
-            className="w-full py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm transition-colors"
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded flex items-center justify-center space-x-2"
           >
-            Refresh Feed
+            {loading ? (
+              <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+            ) : (
+              <>
+                <LogIn className="w-4 h-4" />
+                <span>Login</span>
+              </>
+            )}
           </button>
-        )}
+        </div>
+        
+        <div className="mt-4 text-center text-sm text-gray-400">
+          <p>Don't have an account? <a href="https://bsky.app" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Sign up on Bluesky</a></p>
+          <p className="mt-2 text-xs">
+            Supports any AT Protocol PDS • <a href="https://atproto.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">Learn about federation</a>
+          </p>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+// Widget Component
+const Widget = ({ title, icon: Icon, children, className = "" }: {
+  title: string
+  icon: any
+  children: React.ReactNode
+  className?: string
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/30 p-6 ${className}`}
+    >
+      <div className="flex items-center space-x-3 mb-4">
+        <Icon className="w-5 h-5 text-blue-400" />
+        <h3 className="text-lg font-semibold text-white">{title}</h3>
       </div>
+      {children}
+    </motion.div>
+  )
+}
+
+// Terminal Widget
+const TerminalWidget = () => {
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  
+  if (isFullscreen) {
+    return (
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        className="fixed inset-4 bg-gray-900 border border-gray-700 z-40 p-6 rounded-xl"
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-white">Terminal</h2>
+          <button
+            onClick={() => setIsFullscreen(false)}
+            className="p-2 hover:bg-gray-700 rounded"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="bg-black rounded p-4 h-full font-mono text-green-400 text-sm overflow-auto">
+          <div>user@atproto-dashboard:~$ ps aux | grep atproto</div>
+          <div className="text-gray-400">atproto  1234  0.1  2.3  /usr/bin/atproto-pds</div>
+          <div>user@atproto-dashboard:~$ tail -f /var/log/atproto.log</div>
+          <div className="text-gray-400">[INFO] AT Protocol PDS listening on port 3000</div>
+          <div className="text-gray-400">[INFO] Federation sync completed successfully</div>
+          <div>user@atproto-dashboard:~$ <span className="animate-pulse">|</span></div>
+        </div>
+      </motion.div>
+    )
+  }
+
+  return (
+    <Widget title="Terminal" icon={Terminal}>
+      <div className="bg-black rounded p-3 font-mono text-green-400 text-sm h-24">
+        <div>$ tail -f /var/log/atproto.log</div>
+        <div className="text-gray-400 text-xs">[INFO] Federation sync completed</div>
+        <div>$ <span className="animate-pulse">|</span></div>
+      </div>
+      <button
+        onClick={() => setIsFullscreen(true)}
+        className="mt-3 px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
+      >
+        Launch Terminal
+      </button>
     </Widget>
   )
 }
 
-// Update your Dashboard component to include the agent and FeedWidget
+// Main Dashboard Component
 function Dashboard({ session, serviceEndpoint, onLogout }: { 
   session: AuthSession; 
   serviceEndpoint: string;
@@ -185,50 +287,183 @@ function Dashboard({ session, serviceEndpoint, onLogout }: {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [currentTime, setCurrentTime] = useState('')
   const [mounted, setMounted] = useState(false)
-  const [agent, setAgent] = useState<BskyAgent | null>(null)
+  
+  const mockMetrics = {
+    cpu: 45,
+    memory: 62,
+    pdsUptime: '99.9%',
+    activeUsers: 127
+  }
+  
+  const mockAlerts = [
+    { id: 1, type: 'warning' as const, message: 'High memory usage detected', time: '2 min ago' },
+    { id: 2, type: 'info' as const, message: 'PDS sync completed successfully', time: '5 min ago' },
+    { id: 3, type: 'error' as const, message: 'Failed to connect to federation peer', time: '8 min ago' }
+  ]
 
-  // Initialize agent when session is available
   useEffect(() => {
-    if (session) {
-      const newAgent = new BskyAgent({ service: serviceEndpoint })
-      // Restore session to agent
-      newAgent.session = session
-      setAgent(newAgent)
-    }
-  }, [session, serviceEndpoint])
-
-  // ... existing useEffect for time ...
+    setMounted(true)
+    setCurrentTime(new Date().toLocaleTimeString())
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString())
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [])
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      {/* ... existing header ... */}
+      {/* Header */}
+      <header className="border-b border-gray-700/50 bg-gray-800/30 backdrop-blur-sm">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 hover:bg-gray-700/50 rounded"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <h1 className="text-xl font-bold">AT Protocol Dashboard</h1>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <div className="text-sm text-gray-300" suppressHydrationWarning>
+              {mounted ? currentTime : '--:--:--'}
+            </div>
+            <button className="p-2 hover:bg-gray-700/50 rounded relative">
+              <Bell className="w-5 h-5" />
+              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+            </button>
+            <div className="flex items-center space-x-2 px-3 py-1 bg-gray-700/50 rounded">
+              <User className="w-4 h-4" />
+              <span className="text-sm">{session.handle}</span>
+            </div>
+            <button
+              onClick={onLogout}
+              className="p-2 hover:bg-gray-700/50 rounded text-red-400"
+              title="Logout"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </header>
 
       <div className="flex">
-        {/* ... existing sidebar ... */}
+        {/* Sidebar */}
+        <AnimatePresence>
+          {sidebarOpen && (
+            <motion.aside
+              initial={{ x: -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -300, opacity: 0 }}
+              className="w-64 bg-gray-800/50 backdrop-blur-sm border-r border-gray-700/30 p-4"
+            >
+              <nav className="space-y-2">
+                <a href="#" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50 bg-gray-700/30">
+                  <Activity className="w-5 h-5" />
+                  <span>Dashboard</span>
+                </a>
+                <a href="#" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50">
+                  <Terminal className="w-5 h-5" />
+                  <span>Terminal</span>
+                </a>
+                <a href="#" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50">
+                  <Server className="w-5 h-5" />
+                  <span>PDS Management</span>
+                </a>
+                <a href="#" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50">
+                  <MessageSquare className="w-5 h-5" />
+                  <span>Posts</span>
+                </a>
+                <a href="#" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50">
+                  <Users className="w-5 h-5" />
+                  <span>Users</span>
+                </a>
+                <a href="#" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50">
+                  <Settings className="w-5 h-5" />
+                  <span>Settings</span>
+                </a>
+              </nav>
+            </motion.aside>
+          )}
+        </AnimatePresence>
 
-        {/* Main Content - Updated grid */}
+        {/* Main Content */}
         <main className="flex-1 p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            
-            {/* Feed Widget - spans 2 columns */}
-            <FeedWidget agent={agent} />
-            
-            {/* Terminal Widget - now takes 1 column */}
-            <TerminalWidget />
+            {/* Terminal Widget - spans 2 columns on larger screens */}
+            <div className="lg:col-span-2">
+              <TerminalWidget />
+            </div>
             
             {/* System Metrics */}
             <Widget title="System Metrics" icon={Activity}>
-              {/* ... existing metrics ... */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-400">{mockMetrics.cpu}%</div>
+                  <div className="text-sm text-gray-400">CPU Usage</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-400">{mockMetrics.memory}%</div>
+                  <div className="text-sm text-gray-400">Memory</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-400">{mockMetrics.pdsUptime}</div>
+                  <div className="text-sm text-gray-400">PDS Uptime</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-400">{mockMetrics.activeUsers}</div>
+                  <div className="text-sm text-gray-400">Active Users</div>
+                </div>
+              </div>
             </Widget>
 
             {/* AT Protocol Status */}
             <Widget title="AT Protocol Status" icon={Server}>
-              {/* ... existing status ... */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-300">Connection</span>
+                  <span className="text-green-400 flex items-center">
+                    <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                    Connected
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-300">PDS</span>
+                  <span className="text-blue-400 text-xs">{new URL(serviceEndpoint).hostname}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-300">Handle</span>
+                  <span className="text-blue-400">{session.handle}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-300">DID</span>
+                  <span className="text-gray-400 text-xs font-mono">{session.did.slice(0, 20)}...</span>
+                </div>
+                <div className="pt-2">
+                  <button className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-700 rounded text-sm">
+                    View Profile
+                  </button>
+                </div>
+              </div>
             </Widget>
 
             {/* Alerts */}
             <Widget title="Alerts" icon={AlertTriangle}>
-              {/* ... existing alerts ... */}
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {mockAlerts.map((alert) => (
+                  <div key={alert.id} className="flex items-start space-x-2 p-2 rounded">
+                    <div className={`w-2 h-2 rounded-full mt-2 ${
+                      alert.type === 'error' ? 'bg-red-400' :
+                      alert.type === 'warning' ? 'bg-yellow-400' : 'bg-blue-400'
+                    }`} />
+                    <div className="flex-1">
+                      <div className="text-sm text-gray-300">{alert.message}</div>
+                      <div className="text-xs text-gray-500">{alert.time}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </Widget>
           </div>
         </main>
@@ -237,7 +472,7 @@ function Dashboard({ session, serviceEndpoint, onLogout }: {
   )
 }
 
-// Update your main FullDashboard component to pass the agent
+// Main App Component - Default Export
 const FullDashboard = () => {
   const [session, setSession] = useState<AuthSession | null>(null)
   const [loading, setLoading] = useState(false)
@@ -290,3 +525,5 @@ const FullDashboard = () => {
 
   return <Dashboard session={session} serviceEndpoint={serviceEndpoint} onLogout={handleLogout} />
 }
+
+export default FullDashboard
