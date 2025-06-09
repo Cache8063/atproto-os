@@ -7,7 +7,7 @@
 
 ## Project Overview
 
-AT Protocol OS is a comprehensive dashboard and operating system interface for AT Protocol (Bluesky) applications. The project provides authentication, user management, and a modern React-based interface for interacting with the AT Protocol ecosystem.
+AT Protocol OS is a comprehensive dashboard and operating system interface for AT Protocol (Bluesky) applications. The project provides authentication, user management, timeline viewing, and a modern React-based interface for interacting with the AT Protocol ecosystem.
 
 ## Technical Stack
 
@@ -29,27 +29,20 @@ AT Protocol OS is a comprehensive dashboard and operating system interface for A
 ## Current Architecture
 
 ### Authentication System
-**Status**: ✅ **FULLY IMPLEMENTED**  
-**Location**: `src/components/full-dashboard.tsx`
+**Status**: ✅ Fully Implemented + Enhanced  
+**Location**: `src/components/full-dashboard.tsx` (integrated)
 
 The authentication system provides:
-- **Real AT Protocol Integration**: Uses `@atproto/api` BskyAgent for live authentication
-- **Multi-PDS Support**: Works with Bluesky and any AT Protocol PDS
-- **Auto-Detection**: Determines PDS from handle format (e.g., `user.custom-pds.com`)
-- **Manual Override**: Advanced settings for custom PDS endpoints
-- **Session Management**: Complete login/logout flow with React state
-- **Modern UI**: Professional interface with animations and error handling
+- React-based auth state management
+- Session persistence and resumption
+- Login/logout functionality with proper error handling
+- **NEW**: Custom PDS server auto-detection
+- **NEW**: Automatic fallback from custom PDS to Bluesky
+- **NEW**: Smart service resolution from handle format
+- Loading states and comprehensive error messaging
 
-**Key Features**:
+**Key Components**:
 ```typescript
-// Multi-PDS Authentication
-interface AuthCredentials {
-  identifier: string  // Handle or email
-  password: string
-  service?: string    // Optional custom PDS
-}
-
-// Full Session Management
 interface AuthSession {
   accessJwt: string
   refreshJwt: string
@@ -57,52 +50,62 @@ interface AuthSession {
   did: string
   active: boolean
 }
+
+class ATProtoAuth {
+  // Auto-detects PDS from handle format
+  private async resolveServiceFromHandle(identifier: string): Promise<string>
+  // Handles login with fallback logic
+  async login(credentials: AuthCredentials): Promise<AuthSession>
+  // Timeline and profile data fetching
+  async getTimeline(): Promise<Post[]>
+}
 ```
 
-### Login Interface
-**Status**: ✅ **COMPLETED**  
-**Location**: Integrated in `src/components/full-dashboard.tsx`
-
-Features:
-- **Federation-Ready**: Supports any AT Protocol PDS, not just Bluesky
-- **Smart Detection**: Auto-detects PDS from handle domain
-- **Advanced Configuration**: Manual PDS endpoint override
-- **Modern UX**: Modal-based UI with backdrop blur and animations
-- **Security**: Password visibility toggle and proper validation
-- **Accessibility**: Enter key support and loading states
-- **Help Links**: Direct links to Bluesky signup and AT Protocol docs
-
-**UI Elements**:
-- Dark theme with blue accents matching AT Protocol branding
-- Framer Motion animations for smooth interactions
-- Lucide React icons for consistent design
-- Responsive design supporting mobile and desktop
-
-### Dashboard Integration
-**Status**: ✅ **COMPLETED**  
+### Timeline Interface
+**Status**: ✅ Fully Implemented  
 **Location**: `src/components/full-dashboard.tsx`
 
-The main application now provides:
-- **Authenticated State Management**: Full conditional rendering
-- **User Session Display**: Shows connected handle and PDS
-- **Professional Interface**: Modern dashboard with sidebar navigation
-- **Real-time Features**: Live clock, metrics, and alerts
-- **Logout Functionality**: Clean session termination
+Features:
+- **Real Bluesky timeline** with actual user posts
+- **Social interaction displays** (likes, reposts, replies)
+- **User avatars and profile information**
+- **Relative timestamps** (5m, 2h, 1d format)
+- **Twitter/X-like interface** design
+- **Responsive layout** for mobile and desktop
+- **Error handling and loading states**
+- **Auto-refresh capabilities**
 
-### PDS Compatibility
-**Status**: ✅ **IMPLEMENTED**  
+**UI Elements**:
+- Clean timeline feed with post cards
+- User profile information in posts
+- Interaction buttons (like, repost, reply, share)
+- Loading spinners and error messages
+- Responsive grid layout
 
-Supports the complete AT Protocol ecosystem:
-- **Bluesky (bsky.social)**: Default option, most users
-- **Self-hosted PDSes**: Custom domain detection
-- **Corporate PDSes**: Enterprise deployments
-- **Community PDSes**: Specialized instances
-- **Future PDSes**: Any compliant AT Protocol implementation
+### Multi-View Dashboard
+**Status**: ✅ Implemented  
+**Location**: `src/components/full-dashboard.tsx`
 
-**Examples**:
-- `alice.bsky.social` → `https://bsky.social`
-- `alice.company.com` → `https://company.com` (auto-detected)
-- Manual override for `https://my-homelab.local:3000`
+The dashboard includes three main views:
+1. **Timeline View**: Bluesky social feed
+2. **Dashboard View**: System metrics and account info
+3. **Terminal View**: Command interface simulation
+
+**Navigation**: 
+- Collapsible sidebar with view switching
+- Smooth animations between views
+- Current view highlighting
+
+### Enhanced Login Interface
+**Status**: ✅ Enhanced  
+**Location**: Integrated in `full-dashboard.tsx`
+
+Features:
+- **Multi-PDS support** with auto-detection
+- **Improved UX** with better error messages
+- **Visual feedback** for connection attempts
+- **Help text** explaining supported handle formats
+- **Service URL display** in header for debugging
 
 ## Repository Configuration
 
@@ -146,17 +149,18 @@ Integration points:
 atproto-test/
 ├── src/
 │   ├── components/
-│   │   └── full-dashboard.tsx        # 🆕 Complete auth + dashboard
-│   │   └── login-modal.tsx           # Legacy component (unused)
-│   │   └── simple-dashboard.tsx      # Development reference
+│   │   └── full-dashboard.tsx        # Main integrated dashboard with auth + timeline
+│   │   ├── login-modal.tsx           # Legacy - now integrated
+│   │   ├── simple-dashboard.tsx      # Basic dashboard (backup)
+│   │   └── simple-working-dashboard.tsx # Basic working version
 │   ├── lib/
-│   │   └── atproto-auth.ts           # Legacy auth class
+│   │   └── atproto-auth.ts           # Legacy - now integrated in dashboard
 │   ├── types/
-│   │   └── index.ts                  # TypeScript definitions
+│   │   └── index.ts                  # TypeScript interfaces
 │   └── app/
-│       ├── layout.tsx                # App layout
-│       ├── globals.css               # Tailwind imports
-│       └── page.tsx                  # Main entry point
+│       ├── page.tsx                  # Main page entry (imports full-dashboard)
+│       ├── layout.tsx                # Next.js layout
+│       └── globals.css               # Global styles
 ├── package.json                      # Dependencies and scripts
 ├── tsconfig.json                     # TypeScript configuration
 ├── tailwind.config.js               # Tailwind CSS configuration
@@ -165,177 +169,178 @@ atproto-test/
 
 ## Recent Milestones
 
-### 2025-06-08 - **MAJOR**: Complete Authentication Implementation
-- ✅ **BREAKTHROUGH**: Real AT Protocol authentication working
-- ✅ **FEDERATION**: Multi-PDS support with auto-detection
-- ✅ **PRODUCTION-READY**: Full login/logout flow implemented
-- ✅ **MODERN UI**: Professional interface with animations
-- ✅ **ENTERPRISE**: Custom PDS endpoint configuration
-- ✅ **INTEGRATION**: Seamless dashboard + auth in single component
+### 2025-06-08 - Timeline Integration & PDS Enhancement
+- ✅ **Bluesky Timeline Implementation**: Full timeline with real posts, user interactions
+- ✅ **Multi-PDS Authentication**: Auto-detection of custom PDS servers
+- ✅ **Enhanced Error Handling**: Better error messages and fallback logic
+- ✅ **Timeline UI/UX**: Twitter/X-like interface with proper post rendering
+- ✅ **Service Detection**: Smart resolution of PDS from handle format
+- ✅ **React Error Fixes**: Resolved object rendering issues with proper type conversions
 
-### Previous Milestones
-- ✅ Initial dashboard UI components
-- ✅ AT Protocol client setup
-- ✅ Multi-remote git configuration
-- ✅ TypeScript and Tailwind integration
-
-### Key Achievements
-1. **🚀 LIVE AUTHENTICATION**: Real AT Protocol login with actual credentials
-2. **🌐 FEDERATION SUPPORT**: Works across the entire AT Protocol ecosystem
-3. **⚡ MODERN ARCHITECTURE**: Single-component auth + dashboard integration
-4. **🎨 PROFESSIONAL UI**: Production-quality interface with animations
-5. **🔧 DEVELOPER FRIENDLY**: Extensible architecture for future features
+### Previous - Authentication Foundation
+- ✅ Implemented AuthContext with React Context API
+- ✅ Created LoginForm component with modern UI
+- ✅ Integrated AT Protocol client for authentication
+- ✅ Set up multi-remote git configuration
+- ✅ Established GitHub repository sync
 
 ## Current State Analysis
 
-### ✅ Completed Features
-- **Full AT Protocol Authentication**: Live login with real credentials
-- **Multi-PDS Federation**: Support for any AT Protocol server
-- **Session Management**: Complete login/logout with state persistence
-- **Modern Interface**: Professional dashboard with sidebar navigation
-- **Auto-Detection**: Smart PDS discovery from handle domains
-- **Advanced Settings**: Manual PDS endpoint override capability
-- **Error Handling**: Comprehensive error states and user feedback
-- **Type Safety**: Full TypeScript implementation throughout
+### Strengths
+- **Complete AT Protocol integration** with authentication and timeline
+- **Multi-PDS support** with automatic detection and fallback
+- **Professional UI/UX** with smooth animations and responsive design
+- **Robust error handling** and user feedback
+- **Type-safe implementation** with comprehensive TypeScript
+- **Modern React patterns** with hooks and proper state management
+- **Real-world functionality** - actually fetches and displays user data
 
-### 🚀 Ready for Next Phase
-- **Core Foundation**: Authentication and dashboard complete
-- **Extensible Architecture**: Ready for feature expansion
-- **Production Quality**: Professional UI/UX and error handling
-- **Federation Ready**: Supports growing AT Protocol ecosystem
+### Recent Fixes
+- **React rendering errors**: Fixed object-to-string conversion issues
+- **PDS auto-detection**: Smart service resolution from handle format
+- **Authentication fallback**: Automatic retry logic for failed custom PDS connections
+- **Timeline data safety**: Proper type conversion and error handling for all user data
+- **Service URL display**: Shows current PDS connection in header for debugging
 
-### 🔄 Next Development Areas
-- **User Profile Management**: Display and edit profile information
-- **Post Composition**: Create and publish AT Protocol posts
-- **Feed Integration**: View and interact with social feeds
-- **Real-time Features**: Notifications and live updates
-- **Advanced PDS Management**: Server administration tools
+### Areas for Development
+- **Post composition**: Create and publish new posts
+- **User interactions**: Like, repost, reply functionality
+- **Real-time updates**: Live timeline refresh and notifications
+- **Search functionality**: Find users and posts
+- **Profile management**: Edit user profile and settings
+- **Advanced PDS features**: Custom PDS administration tools
 
 ## Next Steps & Roadmap
 
-### Immediate Priorities (Current Sprint)
-1. **🔄 GitHub Actions Setup**
-   - Create CI/CD workflow for automated testing
-   - Set up deployment pipeline for production releases
-   - Configure code quality checks and linting
+### Immediate Priorities (Next Sprint)
+1. **Post Composition Interface**
+   - Create post modal/form
+   - Character count and media upload
+   - Publish to AT Protocol
 
-2. **🔄 Claude.ai Integration**
-   - Set up webhook endpoints for development automation
-   - Configure API keys and secrets management
-   - Test integration workflow with commit notifications
+2. **Social Interactions**
+   - Implement like/unlike functionality
+   - Add repost capabilities
+   - Basic reply system
 
-3. **🆕 Core Dashboard Features**
-   - **User Profile Display**: Show authenticated user information
-   - **Basic Post Viewing**: Display AT Protocol posts and feeds
-   - **Profile Management**: Edit user settings and preferences
+3. **Timeline Enhancements**
+   - Pull-to-refresh functionality
+   - Infinite scroll for older posts
+   - Real-time updates
 
-### Medium-term Goals (Next Month)
-1. **📝 Content Management**
-   - **Post Composition**: Rich text editor for creating posts
-   - **Media Upload**: Image and video attachment support
-   - **Feed Curation**: Follow/unfollow and custom feed management
+### Medium-term Goals
+1. **User Discovery**
+   - Search users and posts
+   - Trending topics
+   - Recommended follows
 
-2. **⚡ Performance & Features**
-   - **Real-time Updates**: WebSocket integration for live feeds
-   - **Notification System**: Alert management and preferences
-   - **Search & Discovery**: Find users and content across the network
+2. **Profile Management**
+   - Edit profile information
+   - Avatar and banner upload
+   - Account settings
 
-3. **🏗️ Advanced PDS Features**
-   - **Server Administration**: PDS management for self-hosters
-   - **Federation Monitoring**: Network health and connectivity status
-   - **Analytics Dashboard**: User engagement and server metrics
+3. **Advanced Features**
+   - Notification system
+   - Direct messaging
+   - Content moderation tools
 
-### Long-term Vision (3-6 Months)
-1. **🌟 Complete AT Protocol OS**
-   - **Plugin Architecture**: Extensible module system
-   - **Developer Tools**: API explorer and debugging utilities
-   - **Admin Interfaces**: Multi-tenant server management
-   - **Mobile Support**: Progressive Web App functionality
+### Long-term Vision
+1. **Full AT Protocol OS**
+   - Complete ecosystem integration
+   - Plugin architecture
+   - Developer tools
+   - Multi-account support
+
+2. **PDS Administration**
+   - Server management interface
+   - User administration
+   - Content moderation
+   - Analytics dashboard
 
 ## Development Notes
 
-### 🔥 Current Authentication Architecture
-The authentication system is now **production-ready** with these capabilities:
-
-```typescript
-// Supports any AT Protocol PDS
-const examples = [
-  'alice.bsky.social',           // → https://bsky.social
-  'bob.university.edu',          // → https://university.edu
-  'charlie@company.com',         // → https://bsky.social (email)
-  'custom-pds.example.com'       // → Manual override support
-]
-```
-
 ### Code Standards
-- **TypeScript Strict Mode**: Full type safety enforcement
-- **React Best Practices**: Hooks, context, and modern patterns
-- **Component Architecture**: Modular, reusable design
-- **Error Boundaries**: Comprehensive error handling
-- **Semantic Commits**: Clear commit message standards
+- Use TypeScript strict mode with proper type annotations
+- Follow React best practices with functional components and hooks
+- Implement proper error boundaries and loading states
+- Use semantic commit messages
+- Maintain component modularity and reusability
 
 ### Performance Considerations
-- **State Management**: React state only (no localStorage in artifacts)
-- **Animations**: Optimized Framer Motion implementations
-- **Bundle Optimization**: Proper imports and code splitting ready
-- **Memory Management**: Clean component lifecycle handling
+- **Type Safety**: All user data converted to proper types before rendering
+- **Error Handling**: Comprehensive try-catch blocks and fallback states
+- **Memory Management**: Proper cleanup of timers and event listeners
+- **Bundle Optimization**: Use React.memo for expensive components
+- **Network Efficiency**: Implement proper caching for timeline data
 
-### Security Implementation
-- **No Credential Storage**: Session data in React state only
-- **Environment Variables**: Secure configuration management
-- **Input Validation**: Comprehensive user input sanitization
-- **CORS Policies**: Proper cross-origin resource sharing
+### Security Notes
+- **No hardcoded credentials**: All auth handled through proper API calls
+- **Service URL validation**: Proper HTTPS enforcement for PDS connections
+- **Input sanitization**: All user inputs properly validated
+- **Session management**: Secure token handling and automatic cleanup
 
-## Dependencies
+## API Integration Details
 
-### Core Dependencies
-```json
-{
-  "react": "^18.2.0",
-  "next": "^14.1.0", 
-  "typescript": "^5.3.3",
-  "framer-motion": "^11.0.0",
-  "lucide-react": "^0.263.1",
-  "@atproto/api": "^0.15.14"
-}
+### AT Protocol Client Configuration
+```typescript
+// Auto-detection of PDS service
+const serviceUrl = await this.resolveServiceFromHandle(credentials.identifier)
+this.agent = new BskyAgent({ service: serviceUrl })
+
+// Timeline fetching
+const response = await this.agent.getTimeline({ limit: 20 })
+
+// Post data transformation
+const posts = response.data.feed.map(item => ({
+  uri: String(item.post.uri),
+  author: { /* user info */ },
+  record: { /* post content */ },
+  // interaction counts
+}))
 ```
 
-### Key Integrations
-- **@atproto/api**: Official AT Protocol client library
-- **Framer Motion**: Professional animations and transitions
-- **Tailwind CSS**: Utility-first styling framework
-- **Lucide React**: Consistent icon system
+### Supported Handle Formats
+- **Bluesky handles**: `user.bsky.social` → `https://bsky.social`
+- **Custom domains**: `user.example.com` → `https://example.com`
+- **Email addresses**: `user@email.com` → `https://bsky.social`
+- **Fallback logic**: Always tries `bsky.social` if custom PDS fails
+
+## Troubleshooting Guide
+
+### Common Issues
+1. **Login Errors**
+   - Check console for PDS connection attempts
+   - Verify handle format matches expected pattern
+   - Ensure custom PDS is accessible via HTTPS
+
+2. **Timeline Not Loading**
+   - Verify authentication was successful
+   - Check network tab for API call failures
+   - Look for CORS issues with custom PDS
+
+3. **React Rendering Errors**
+   - All user data should be converted to strings/numbers
+   - Check for undefined values in post data
+   - Verify image URLs are valid strings
+
+### Debug Information
+- Service URL shown in header (desktop view)
+- Console logging for all authentication attempts
+- Error messages provide specific failure reasons
+- Network tab shows AT Protocol API calls
 
 ## Team Handoff Checklist
 
-When switching between development sessions:
+When switching between development sessions or team members:
 
-- [ ] **Pull latest changes** from both git remotes
-- [ ] **Review this changelog** for recent updates and context
-- [ ] **Check authentication flow** with test credentials
-- [ ] **Verify PDS connectivity** across different endpoints
-- [ ] **Test responsive design** on multiple screen sizes
-- [ ] **Update documentation** with any new changes made
-
-## Troubleshooting
-
-### Common Issues
-1. **Still seeing old interface**: Clear browser cache and restart dev server
-2. **Authentication failing**: Verify `@atproto/api` dependency is installed
-3. **PDS connection errors**: Check network connectivity and endpoint URLs
-4. **TypeScript errors**: Ensure all dependencies are up to date
-
-### Development Commands
-```bash
-# Start development server
-npm run dev
-
-# Clear Next.js cache
-rm -rf .next
-
-# Reinstall dependencies
-rm -rf node_modules package-lock.json && npm install
-```
+- [ ] Pull latest changes from both remotes (`git pull origin main && git pull github main`)
+- [ ] Review this changelog for recent updates and context
+- [ ] Check current branch status and any pending commits
+- [ ] Verify development environment setup (Node.js 18+, npm install)
+- [ ] Test login functionality with your AT Protocol credentials
+- [ ] Review browser console for any error messages
+- [ ] Check timeline loading and post display
+- [ ] Update this document with any new changes made
 
 ## Contact & Resources
 
@@ -343,16 +348,14 @@ rm -rf node_modules package-lock.json && npm install
 - **Gitea Repository**: https://gitea.cloudforest-basilisk.ts.net/Arcnode.xyz/atproto-os.git
 - **AT Protocol Docs**: https://atproto.com/
 - **Bluesky Platform**: https://bsky.app/
-- **API Documentation**: https://docs.bsky.app/
+- **@atproto/api Documentation**: https://github.com/bluesky-social/atproto
 
 ---
 
-## ⚠️ **Status: AUTHENTICATION IMPLEMENTED - DEPLOYMENT BLOCKED** 
+## Current Status Summary
 
-The AT Protocol OS has **complete federation-ready authentication code** implemented but is experiencing deployment/caching issues preventing the new interface from loading. Code is production-ready and requires debugging deployment pipeline. 🔧
+**✅ WORKING**: Authentication (multi-PDS), Timeline viewing, User interface, Error handling  
+**🔄 IN PROGRESS**: Post composition, Social interactions  
+**📋 PLANNED**: Real-time updates, Search, Profile management, PDS admin tools
 
-### 🚨 **CRITICAL BLOCKER**
-- **Issue**: New authentication interface not loading despite correct code
-- **Symptoms**: Still showing old demo interface with "demo/demo" accounts
-- **Code Status**: ✅ **COMPLETE** - All authentication code properly implemented
-- **Deployment Status**: 🚨 **BLOCKED** - Interface not updating in browser
+**Last Tested**: 2025-06-08 - All core functionality working, timeline displaying real posts, multi-PDS authentication successful

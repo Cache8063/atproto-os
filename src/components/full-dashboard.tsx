@@ -48,6 +48,14 @@ interface Post {
     text: string
     createdAt: string
   }
+  embed?: {
+    images?: Array<{
+      alt: string
+      image: {
+        ref: string
+      }
+    }>
+  }
   replyCount: number
   repostCount: number
   likeCount: number
@@ -173,6 +181,12 @@ class ATProtoAuth {
           text: String(item.post.record.text || ''),
           createdAt: String(item.post.record.createdAt)
         },
+        embed: item.post.embed?.images ? {
+          images: item.post.embed.images.map((img: any) => ({
+            alt: String(img.alt || ''),
+            image: { ref: String(img.image.ref) }
+          }))
+        } : undefined,
         replyCount: Number(item.post.replyCount) || 0,
         repostCount: Number(item.post.repostCount) || 0,
         likeCount: Number(item.post.likeCount) || 0
@@ -242,15 +256,17 @@ function LoginModal({ onClose, onLogin, loading = false }: {
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4"
     >
       <motion.div
-        initial={{ scale: 0.95, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        className="bg-gray-800 rounded-xl border border-gray-700 p-6 w-full max-w-md"
+        initial={{ scale: 0.9, y: 30, opacity: 0 }}
+        animate={{ scale: 1, y: 0, opacity: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
+        className="bg-gray-800/95 backdrop-blur-sm rounded-2xl border border-gray-700/50 p-8 w-full max-w-md shadow-2xl"
       >
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-3">
@@ -336,6 +352,8 @@ function LoginModal({ onClose, onLogin, loading = false }: {
 
 // Timeline Post Component
 function TimelinePost({ post }: { post: Post }) {
+  const [imageError, setImageError] = useState(false)
+  
   const formatTime = (dateString: string) => {
     const date = new Date(dateString)
     const now = new Date()
@@ -348,61 +366,101 @@ function TimelinePost({ post }: { post: Post }) {
   }
 
   return (
-    <div className="border-b border-gray-700 p-4 hover:bg-gray-800/50 transition-colors">
+    <div className="border-b border-gray-700 p-4 hover:bg-gray-800/30 transition-all duration-300">
       <div className="flex space-x-3">
-        <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
-          {post.author.avatar ? (
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center"
+        >
+          {post.author.avatar && !imageError ? (
             <img 
               src={String(post.author.avatar)} 
               alt={String(post.author.handle)}
               className="w-10 h-10 rounded-full object-cover"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none'
-                e.currentTarget.nextSibling.style.display = 'flex'
-              }}
+              onError={() => setImageError(true)}
             />
           ) : (
             <User className="w-5 h-5 text-gray-400" />
           )}
-        </div>
+        </motion.div>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-2 text-sm">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="flex items-center space-x-2 text-sm"
+          >
             <span className="font-semibold text-white">
               {String(post.author.displayName || post.author.handle)}
             </span>
             <span className="text-gray-400">@{String(post.author.handle)}</span>
             <span className="text-gray-500">·</span>
             <span className="text-gray-500">{formatTime(post.record.createdAt)}</span>
-          </div>
+          </motion.div>
           
-          <div className="mt-1 text-white whitespace-pre-wrap">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="mt-1 text-white whitespace-pre-wrap text-sm leading-relaxed"
+          >
             {String(post.record.text)}
-          </div>
+          </motion.div>
+
+          {/* Image thumbnails */}
+          {post.embed?.images && post.embed.images.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4, delay: 0.4 }}
+              className="mt-3 grid grid-cols-2 gap-2"
+            >
+              {post.embed.images.slice(0, 4).map((img, index) => (
+                <div 
+                  key={index}
+                  className="relative aspect-square rounded-lg overflow-hidden bg-gray-700"
+                >
+                  <img
+                    src={`https://cdn.bsky.app/img/feed_thumbnail/plain/${post.author.did}/${img.image.ref}@jpeg`}
+                    alt={img.alt || 'Image'}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
+              ))}
+            </motion.div>
+          )}
           
-          <div className="flex items-center space-x-6 mt-3 text-gray-400">
-            <button className="flex items-center space-x-1 hover:text-blue-400 transition-colors">
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            className="flex items-center space-x-6 mt-3 text-gray-400"
+          >
+            <button className="flex items-center space-x-1 hover:text-blue-400 transition-all duration-300 transform hover:scale-105">
               <MessageCircle className="w-4 h-4" />
               <span className="text-sm">{String(post.replyCount || 0)}</span>
             </button>
             
-            <button className="flex items-center space-x-1 hover:text-green-400 transition-colors">
+            <button className="flex items-center space-x-1 hover:text-green-400 transition-all duration-300 transform hover:scale-105">
               <Repeat2 className="w-4 h-4" />
               <span className="text-sm">{String(post.repostCount || 0)}</span>
             </button>
             
-            <button className="flex items-center space-x-1 hover:text-red-400 transition-colors">
+            <button className="flex items-center space-x-1 hover:text-red-400 transition-all duration-300 transform hover:scale-105">
               <Heart className="w-4 h-4" />
               <span className="text-sm">{String(post.likeCount || 0)}</span>
             </button>
             
-            <button className="hover:text-gray-300 transition-colors">
+            <button className="hover:text-gray-300 transition-all duration-300 transform hover:scale-105">
               <Share className="w-4 h-4" />
             </button>
           </div>
         </div>
         
-        <button className="p-1 hover:bg-gray-700 rounded-full">
+        <button className="p-1 hover:bg-gray-700 rounded-full transition-all duration-200">
           <MoreHorizontal className="w-4 h-4 text-gray-400" />
         </button>
       </div>
@@ -436,9 +494,18 @@ function Timeline() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-      </div>
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="flex items-center justify-center h-64"
+      >
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+          className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full"
+        ></motion.div>
+      </motion.div>
     )
   }
 
@@ -458,8 +525,15 @@ function Timeline() {
 
   return (
     <div className="divide-y divide-gray-700">
-      {posts.map((post) => (
-        <TimelinePost key={post.uri} post={post} />
+      {posts.map((post, index) => (
+        <motion.div
+          key={post.uri}
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: index * 0.1, ease: "easeOut" }}
+        >
+          <TimelinePost post={post} />
+        </motion.div>
       ))}
     </div>
   )
@@ -474,15 +548,27 @@ function Widget({ title, icon: Icon, children, className = '' }: {
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/30 p-6 ${className}`}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className={`bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/30 p-6 hover:border-gray-600/50 transition-all duration-400 ${className}`}
     >
-      <div className="flex items-center space-x-3 mb-4">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+        className="flex items-center space-x-3 mb-4"
+      >
         <Icon className="w-5 h-5 text-blue-400" />
         <h3 className="text-lg font-semibold text-white">{title}</h3>
-      </div>
-      {children}
+      </motion.div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+      >
+        {children}
+      </motion.div>
     </motion.div>
   )
 }
@@ -609,36 +695,46 @@ export default function Dashboard() {
               initial={{ x: -300, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -300, opacity: 0 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
               className="w-64 bg-gray-800/50 backdrop-blur-sm border-r border-gray-700/30 p-4"
             >
               <nav className="space-y-2">
-                <button
+                <motion.button
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.1 }}
                   onClick={() => setCurrentView('timeline')}
-                  className={`w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50 ${
+                  className={`w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50 transition-all duration-300 ${
                     currentView === 'timeline' ? 'bg-gray-700/50' : ''
                   }`}
                 >
                   <Home className="w-5 h-5" />
                   <span>Timeline</span>
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.2 }}
                   onClick={() => setCurrentView('dashboard')}
-                  className={`w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50 ${
+                  className={`w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50 transition-all duration-300 ${
                     currentView === 'dashboard' ? 'bg-gray-700/50' : ''
                   }`}
                 >
                   <Activity className="w-5 h-5" />
                   <span>Dashboard</span>
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3, delay: 0.3 }}
                   onClick={() => setCurrentView('terminal')}
-                  className={`w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50 ${
+                  className={`w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50 transition-all duration-300 ${
                     currentView === 'terminal' ? 'bg-gray-700/50' : ''
                   }`}
                 >
                   <Terminal className="w-5 h-5" />
                   <span>Terminal</span>
-                </button>
+                </motion.button>
               </nav>
             </motion.aside>
           )}
@@ -647,16 +743,26 @@ export default function Dashboard() {
         {/* Main Content */}
         <main className="flex-1">
           {currentView === 'timeline' && (
-            <div className="max-w-2xl mx-auto border-x border-gray-700 min-h-screen">
-              <div className="sticky top-0 bg-gray-900/80 backdrop-blur-sm border-b border-gray-700 p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="max-w-sm mx-auto border-x border-gray-700 min-h-screen"
+            >
+              <div className="sticky top-0 bg-gray-900/90 backdrop-blur-md border-b border-gray-700 p-4">
                 <h2 className="text-xl font-bold">Home Timeline</h2>
               </div>
               <Timeline />
-            </div>
+            </motion.div>
           )}
 
           {currentView === 'dashboard' && (
-            <div className="p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="p-6"
+            >
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <Widget title="System Metrics" icon={Activity}>
                   <div className="grid grid-cols-2 gap-4">
@@ -703,11 +809,16 @@ export default function Dashboard() {
                   </div>
                 </Widget>
               </div>
-            </div>
+            </motion.div>
           )}
 
           {currentView === 'terminal' && (
-            <div className="p-6">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="p-6"
+            >
               <Widget title="Terminal" icon={Terminal} className="h-96">
                 <div className="bg-black rounded p-4 h-full font-mono text-green-400 text-sm">
                   <div>user@atproto-dashboard:~$ ps aux | grep bsky</div>
@@ -715,7 +826,7 @@ export default function Dashboard() {
                   <div>user@atproto-dashboard:~$ <span className="animate-pulse">|</span></div>
                 </div>
               </Widget>
-            </div>
+            </motion.div>
           )}
         </main>
       </div>
