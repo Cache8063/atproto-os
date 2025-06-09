@@ -7,7 +7,7 @@
 
 ## Project Overview
 
-AT Protocol OS is a comprehensive dashboard and operating system interface for AT Protocol (Bluesky) applications. The project provides authentication, user management, timeline viewing, and a modern React-based interface for interacting with the AT Protocol ecosystem.
+AT Protocol OS is a comprehensive dashboard and operating system interface for AT Protocol (Bluesky) applications. The project provides authentication, user management, and a modern React-based interface for interacting with the AT Protocol ecosystem.
 
 ## Technical Stack
 
@@ -29,86 +29,44 @@ AT Protocol OS is a comprehensive dashboard and operating system interface for A
 ## Current Architecture
 
 ### Authentication System
-**Status**: ✅ Fully Implemented + Enhanced  
-**Location**: `src/components/full-dashboard.tsx` (integrated)
+**Status**: ✅ Implemented  
+**Location**: `src/contexts/auth-context.tsx`
 
 The authentication system provides:
-- React-based auth state management
-- Session persistence and resumption
-- Login/logout functionality with proper error handling
-- **NEW**: Custom PDS server auto-detection
-- **NEW**: Automatic fallback from custom PDS to Bluesky
-- **NEW**: Smart service resolution from handle format
-- Loading states and comprehensive error messaging
+- React Context for global auth state management
+- Session persistence and resumption (localStorage removed for Claude compatibility)
+- Login/logout functionality
+- Loading states and error handling
+- Integration with AT Protocol client
 
 **Key Components**:
 ```typescript
-interface AuthSession {
-  accessJwt: string
-  refreshJwt: string
-  handle: string
-  did: string
-  active: boolean
-}
-
-class ATProtoAuth {
-  // Auto-detects PDS from handle format
-  private async resolveServiceFromHandle(identifier: string): Promise<string>
-  // Handles login with fallback logic
-  async login(credentials: AuthCredentials): Promise<AuthSession>
-  // Timeline and profile data fetching
-  async getTimeline(): Promise<Post[]>
+interface AuthContextType {
+  session: AuthSession | null
+  loading: boolean
+  login: (credentials: AuthCredentials) => Promise<void>
+  logout: () => Promise<void>
+  isAuthenticated: boolean
 }
 ```
 
-### Timeline Interface
-**Status**: ✅ Production Ready (v1.0)  
-**Location**: `src/components/full-dashboard.tsx`
-
-Features:
-- **Real Bluesky timeline** with actual user posts
-- **Image thumbnails** in elegant 2x2 grid layout
-- **Compact width** (1/3 screen) optimized for desktop reading
-- **Social interaction displays** (likes, reposts, replies)
-- **User avatars and profile information** with fallback handling
-- **Relative timestamps** (5m, 2h, 1d format)
-- **Twitter/X-like interface** design with modern polish
-- **Responsive layout** for mobile and desktop
-- **Error handling and loading states** with retry functionality
-- **Smooth hover effects** and micro-interactions
-
-**UI Elements**:
-- Clean timeline feed with optimized post cards
-- User profile information with avatar fallbacks
-- Interaction buttons with hover scale effects
-- Loading spinners and error messages with retry
-- Responsive grid layout for images
-- Professional typography and spacing
-
-### Multi-View Dashboard
+### Login Interface
 **Status**: ✅ Implemented  
-**Location**: `src/components/full-dashboard.tsx`
-
-The dashboard includes three main views:
-1. **Timeline View**: Bluesky social feed
-2. **Dashboard View**: System metrics and account info
-3. **Terminal View**: Command interface simulation
-
-**Navigation**: 
-- Collapsible sidebar with view switching
-- Smooth animations between views
-- Current view highlighting
-
-### Enhanced Login Interface
-**Status**: ✅ Enhanced  
-**Location**: Integrated in `full-dashboard.tsx`
+**Location**: `src/components/login-modal.tsx`
 
 Features:
-- **Multi-PDS support** with auto-detection
-- **Improved UX** with better error messages
-- **Visual feedback** for connection attempts
-- **Help text** explaining supported handle formats
-- **Service URL display** in header for debugging
+- Modern modal-based UI with backdrop blur
+- Handle/email and password input
+- Password visibility toggle
+- Error state handling with animated feedback
+- Loading states with spinner
+- Responsive design with mobile support
+
+### Dashboard Integration
+**Status**: ⚠️ LAYOUT ISSUES  
+**Location**: `src/components/dashboard-with-auth.tsx`, `src/components/full-dashboard.tsx`
+
+The main application entry point handles authentication state but has unresolved layout issues with the terminal widget sizing.
 
 ## Repository Configuration
 
@@ -151,19 +109,17 @@ Integration points:
 ```
 atproto-test/
 ├── src/
+│   ├── contexts/
+│   │   └── auth-context.tsx          # Auth state management
 │   ├── components/
-│   │   └── full-dashboard.tsx        # Main integrated dashboard with auth + timeline
-│   │   ├── login-modal.tsx           # Legacy - now integrated
-│   │   ├── simple-dashboard.tsx      # Basic dashboard (backup)
-│   │   └── simple-working-dashboard.tsx # Basic working version
+│   │   ├── auth/
+│   │   │   └── login-form.tsx        # Login modal component
+│   │   ├── dashboard-with-auth/      # Main dashboard wrapper
+│   │   └── full-dashboard.tsx        # Main dashboard (LAYOUT ISSUES)
 │   ├── lib/
-│   │   └── atproto-auth.ts           # Legacy - now integrated in dashboard
-│   ├── types/
-│   │   └── index.ts                  # TypeScript interfaces
+│   │   └── atproto-auth.ts           # AT Protocol client config
 │   └── app/
-│       ├── page.tsx                  # Main page entry (imports full-dashboard)
-│       ├── layout.tsx                # Next.js layout
-│       └── globals.css               # Global styles
+│       └── page.tsx                  # Main page entry
 ├── package.json                      # Dependencies and scripts
 ├── tsconfig.json                     # TypeScript configuration
 ├── tailwind.config.js               # Tailwind CSS configuration
@@ -172,233 +128,170 @@ atproto-test/
 
 ## Recent Milestones
 
-### 2025-06-08 - v1.0.1 Custom PDS Compatibility & Timeline Polish
-- ✅ **Custom PDS Timeline Support**: Fixed timeline loading for custom PDS servers
-  - **Image Embed Compatibility**: Resolved `img.image is undefined` errors with flexible image structure handling
-  - **Fallback Logic**: Added graceful degradation when timeline API fails on custom PDS
-  - **Enhanced Debugging**: Comprehensive error logging and image structure detection
-  - **Multi-format Support**: Handles different image reference formats (`img.image.ref`, `img.ref`, `img.cid`)
-
-- ✅ **Timeline UI Optimization**: Achieved true compact mobile-style layout
-  - **Ultra-Compact Width**: Reduced to 256px (`w-64`) for proper mobile density
-  - **Micro Post Design**: 24px avatars, minimal padding, `text-xs` throughout
-  - **Button Proportions**: Fixed inconsistent button sizes - all `3x3` icons with equal spacing
-  - **Thumbnail Images**: Actual small thumbnails (48px height) instead of oversized photos
-  - **High Density Layout**: Maximum posts per screen with optimized spacing
-
-- ✅ **Cross-PDS Validation**: Confirmed working with both custom and standard PDS
-  - **arcnode.xyz**: Custom PDS timeline loading successfully
-  - **bsky.social**: Standard Bluesky compatibility maintained
-  - **Error Resilience**: Graceful handling of different PDS API implementations
-  - **Image CDN Fallbacks**: Smart image URL generation with error handling
-
-### 2025-06-08 - UI/UX Polish & Syntax Fixes (v1.0 Production Ready)
-- ✅ **UI/UX Improvements**: Major polish updates for production readiness
-  - **Timeline Width**: Reduced from full-width to 1/3 screen width (max-w-sm) for better desktop experience
-  - **Image Thumbnails**: Added proper image embed support with 2x2 grid thumbnails instead of full-size images
-  - **Centered Login**: Enhanced login modal positioning and backdrop effects for better visual impact
-  - **Smoother Animations**: Refined animation timing (0.4-0.6s) with better easing curves
-  - **Micro-interactions**: Added hover scale effects and smooth transitions throughout UI
-
-- ✅ **TypeScript/JSX Syntax Resolution**: Fixed all compilation errors
-  - **Component Structure**: Simplified complex motion components causing syntax errors
-  - **JSX Compliance**: Fixed all unclosed tags and improper nesting
-  - **Performance**: Reduced complexity while maintaining visual polish
-  - **Clean Compilation**: Zero TypeScript errors, production-ready code
-
-- ✅ **Enhanced Timeline Features**: 
-  - **Image Support**: Full image embed handling with CDN thumbnail URLs
-  - **Visual Polish**: Improved post layout with better typography and spacing
-  - **Interaction Design**: Enhanced social buttons with hover effects
-  - **Responsive Images**: Proper aspect ratios and hover animations
-
-- ✅ **Production Readiness**: 
-  - **Error-free Compilation**: All TypeScript/JSX issues resolved
-  - **Optimized Performance**: Lighter component structure
-  - **Visual Consistency**: Maintained professional appearance
-  - **Feature Complete**: All authentication and timeline features working
-
-### Previous - Timeline Integration & PDS Enhancement
-- ✅ **Bluesky Timeline Implementation**: Full timeline with real posts, user interactions
-- ✅ **Multi-PDS Authentication**: Auto-detection of custom PDS servers
-- ✅ **Enhanced Error Handling**: Better error messages and fallback logic
-- ✅ **Timeline UI/UX**: Twitter/X-like interface with proper post rendering
-- ✅ **Service Detection**: Smart resolution of PDS from handle format
-- ✅ **React Error Fixes**: Resolved object rendering issues with proper type conversions
-
-### Earlier - Authentication Foundation
+### 2025-06-08 - Authentication Foundation + Layout Issues
 - ✅ Implemented AuthContext with React Context API
 - ✅ Created LoginForm component with modern UI
 - ✅ Integrated AT Protocol client for authentication
 - ✅ Set up multi-remote git configuration
-- ✅ Established GitHub repository sync
+- ❌ FAILED: Multiple attempts to fix terminal widget layout sizing
+
+### Key Achievements
+1. **Full Authentication Flow**: Complete login/logout with session management
+2. **Modern UI**: Responsive design with animations and proper UX
+3. **Type Safety**: Full TypeScript implementation
+4. **Repository Setup**: Dual remote configuration for Gitea + GitHub
+5. **localStorage Removal**: Eliminated browser storage dependencies for Claude.ai compatibility
 
 ## Current State Analysis
 
 ### Strengths
-- **Production-Ready AT Protocol Integration** with authentication and timeline
-- **Multi-PDS Support** with automatic detection and fallback
-- **Professional UI/UX** with optimized layout and smooth interactions
-- **Robust Error Handling** and comprehensive user feedback
-- **Type-Safe Implementation** with clean TypeScript and zero compilation errors
-- **Modern React Patterns** with hooks and proper state management
-- **Real-World Functionality** - fetches and displays live user data
-- **Optimized Performance** - clean component structure without unnecessary complexity
+- Solid authentication foundation
+- Modern React patterns with hooks and context
+- Professional UI/UX with animations
+- Type-safe implementation
+- Proper error handling and loading states
+- No localStorage dependencies
 
-### UI/UX Excellence (v1.0)
-- **Compact Timeline**: Perfect 1/3 screen width for desktop readability
-- **Image Thumbnails**: Elegant 2x2 grid layout for media posts
-- **Centered Login**: Professional modal with backdrop blur and smooth animations
-- **Micro-Interactions**: Hover effects and transitions throughout interface
-- **Responsive Design**: Works seamlessly across desktop and mobile devices
-- **Visual Polish**: Consistent spacing, typography, and color scheme
+### Critical Issues
+- **Terminal Widget Layout**: Widget takes too much screen space in dashboard grid
+- **Grid Layout**: Responsive grid system not working correctly for terminal component
+- **Visual Balance**: Dashboard layout unbalanced due to oversized terminal
 
-### Technical Reliability
-- **Zero Compilation Errors**: Clean TypeScript/JSX syntax throughout
-- **Error Boundaries**: Proper fallback handling for all API calls
-- **Service Auto-Detection**: Smart PDS resolution with bsky.social fallback
-- **Type Safety**: All user data properly converted and validated
-- **Performance Optimized**: Lightweight components with CSS transitions
+### Areas for Development
+- Dashboard functionality beyond authentication
+- User profile management
+- AT Protocol post/feed integration
+- Real-time features
+- Testing coverage
 
-### Areas for Future Development
-- **Post Composition**: Create and publish new posts
-- **Social Interactions**: Like, repost, reply functionality  
-- **Real-Time Updates**: Live timeline refresh and notifications
-- **Search Functionality**: Find users and posts
-- **Profile Management**: Edit user profile and settings
-- **Advanced PDS Features**: Custom PDS administration tools
+## Development Session Log
+
+### 2025-06-08 Session - FAILED LAYOUT FIX
+**Developer**: Claude  
+**Issue**: Terminal widget taking up too much screen space  
+**Status**: HANDOFF REQUIRED
+
+#### Attempt 1: API Limit Reduction
+- **Action**: Reduced timeline API limit from 30 to 10 posts
+- **Result**: WRONG APPROACH - User clarified issue was visual size, not data amount
+- **Status**: Reverted
+
+#### Attempt 2: Demo Code Creation
+- **Action**: Created complete demo artifact with authentication
+- **Result**: WRONG APPROACH - User has production code, doesn't need demos
+- **Status**: Abandoned
+
+#### Attempt 3: Grid Layout Modification
+- **Action**: Modified `full-dashboard.tsx` grid layout, removed `lg:col-span-2`
+- **Result**: LAYOUT BROKEN - Widgets stacking incorrectly
+- **Status**: FAILED
+
+#### Session Outcome
+- **Files Modified**: `atproto-auth.ts`, `full-dashboard.tsx`, created auth context files
+- **Working**: Authentication system fully functional
+- **Broken**: Dashboard grid layout for terminal widget
+- **Handoff**: Required for next developer to fix layout issues
 
 ## Next Steps & Roadmap
 
-### Immediate Priorities (Next Sprint)
-1. **Post Composition Interface**
-   - Create post modal/form
-   - Character count and media upload
-   - Publish to AT Protocol
+### CRITICAL PRIORITY - Layout Fix Required
+1. **Terminal Widget Sizing**
+   - Fix grid layout in `full-dashboard.tsx`
+   - Terminal should take 1/3 screen width, not 2/3
+   - Ensure responsive behavior across screen sizes
+   - Test thoroughly before deployment
 
-2. **Social Interactions**
-   - Implement like/unlike functionality
-   - Add repost capabilities
-   - Basic reply system
+### Immediate Priorities (After Layout Fix)
+1. **GitHub Actions Setup**
+   - Create CI/CD workflow
+   - Set up automated testing
+   - Configure deployment pipeline
 
-3. **Timeline Enhancements**
-   - Pull-to-refresh functionality
-   - Infinite scroll for older posts
-   - Real-time updates
+2. **Claude.ai Integration**
+   - Set up webhook endpoints
+   - Configure API keys and secrets
+   - Test integration workflow
+
+3. **Dashboard Core Features**
+   - User profile display
+   - Basic feed viewing
+   - Post composition interface
 
 ### Medium-term Goals
-1. **User Discovery**
-   - Search users and posts
-   - Trending topics
-   - Recommended follows
-
-2. **Profile Management**
-   - Edit profile information
-   - Avatar and banner upload
-   - Account settings
-
-3. **Advanced Features**
+1. **Feature Expansion**
+   - Advanced feed management
+   - User discovery features
    - Notification system
-   - Direct messaging
-   - Content moderation tools
+   - Settings management
+
+2. **Performance Optimization**
+   - Code splitting
+   - Lazy loading
+   - Caching strategies
+
+3. **Testing & Quality**
+   - Unit test coverage
+   - Integration tests
+   - E2E testing setup
 
 ### Long-term Vision
 1. **Full AT Protocol OS**
    - Complete ecosystem integration
    - Plugin architecture
    - Developer tools
-   - Multi-account support
-
-2. **PDS Administration**
-   - Server management interface
-   - User administration
-   - Content moderation
-   - Analytics dashboard
+   - Admin interfaces
 
 ## Development Notes
 
 ### Code Standards
-- Use TypeScript strict mode with proper type annotations
-- Follow React best practices with functional components and hooks
-- Implement proper error boundaries and loading states
+- Use TypeScript strict mode
+- Follow React best practices
+- Implement proper error boundaries
 - Use semantic commit messages
-- Maintain component modularity and reusability
+- Maintain component modularity
 
 ### Performance Considerations
-- **Type Safety**: All user data converted to proper types before rendering
-- **Error Handling**: Comprehensive try-catch blocks and fallback states
-- **Memory Management**: Proper cleanup of timers and event listeners
-- **Bundle Optimization**: Use React.memo for expensive components
-- **Network Efficiency**: Implement proper caching for timeline data
+- Avoid localStorage in Claude.ai artifacts (use React state)
+- Implement proper loading states
+- Use React.memo for expensive components
+- Optimize bundle size with proper imports
 
 ### Security Notes
-- **No hardcoded credentials**: All auth handled through proper API calls
-- **Service URL validation**: Proper HTTPS enforcement for PDS connections
-- **Input sanitization**: All user inputs properly validated
-- **Session management**: Secure token handling and automatic cleanup
+- Never commit API keys or sensitive credentials
+- Use environment variables for configuration
+- Implement proper CORS policies
+- Validate all user inputs
 
-## API Integration Details
+## Dependencies
 
-### AT Protocol Client Configuration
-```typescript
-// Auto-detection of PDS service
-const serviceUrl = await this.resolveServiceFromHandle(credentials.identifier)
-this.agent = new BskyAgent({ service: serviceUrl })
-
-// Timeline fetching
-const response = await this.agent.getTimeline({ limit: 20 })
-
-// Post data transformation
-const posts = response.data.feed.map(item => ({
-  uri: String(item.post.uri),
-  author: { /* user info */ },
-  record: { /* post content */ },
-  // interaction counts
-}))
+### Core Dependencies
+```json
+{
+  "react": "^18.0.0",
+  "next": "^14.0.0",
+  "typescript": "^5.0.0",
+  "framer-motion": "^10.0.0",
+  "lucide-react": "^0.263.1",
+  "@atproto/api": "latest"
+}
 ```
 
-### Supported Handle Formats
-- **Bluesky handles**: `user.bsky.social` → `https://bsky.social`
-- **Custom domains**: `user.example.com` → `https://example.com`
-- **Email addresses**: `user@email.com` → `https://bsky.social`
-- **Fallback logic**: Always tries `bsky.social` if custom PDS fails
-
-## Troubleshooting Guide
-
-### Common Issues
-1. **Login Errors**
-   - Check console for PDS connection attempts
-   - Verify handle format matches expected pattern
-   - Ensure custom PDS is accessible via HTTPS
-
-2. **Timeline Not Loading**
-   - Verify authentication was successful
-   - Check network tab for API call failures
-   - Look for CORS issues with custom PDS
-
-3. **React Rendering Errors**
-   - All user data should be converted to strings/numbers
-   - Check for undefined values in post data
-   - Verify image URLs are valid strings
-
-### Debug Information
-- Service URL shown in header (desktop view)
-- Console logging for all authentication attempts
-- Error messages provide specific failure reasons
-- Network tab shows AT Protocol API calls
+### Development Dependencies
+- ESLint for code quality
+- Tailwind CSS for styling
+- TypeScript for type safety
 
 ## Team Handoff Checklist
 
 When switching between development sessions or team members:
 
-- [ ] Pull latest changes from both remotes (`git pull origin main && git pull github main`)
-- [ ] Review this changelog for recent updates and context
-- [ ] Check current branch status and any pending commits
-- [ ] Verify development environment setup (Node.js 18+, npm install)
-- [ ] Test login functionality with your AT Protocol credentials
-- [ ] Review browser console for any error messages
-- [ ] Check timeline loading and post display
-- [ ] Update this document with any new changes made
+- [ ] Pull latest changes from both remotes
+- [ ] Review this changelog for context
+- [ ] Check current branch status
+- [ ] Verify environment setup
+- [ ] Review any pending issues or TODOs
+- [ ] **CRITICAL**: Fix terminal widget layout issues in `full-dashboard.tsx`
+- [ ] Update this document with new changes
 
 ## Contact & Resources
 
@@ -406,18 +299,11 @@ When switching between development sessions or team members:
 - **Gitea Repository**: https://gitea.cloudforest-basilisk.ts.net/Arcnode.xyz/atproto-os.git
 - **AT Protocol Docs**: https://atproto.com/
 - **Bluesky Platform**: https://bsky.app/
-- **@atproto/api Documentation**: https://github.com/bluesky-social/atproto
 
----
+## Critical Issues Requiring Attention
 
-## Current Status Summary
+⚠️ **LAYOUT EMERGENCY**: Terminal widget in dashboard is improperly sized, breaking the visual balance of the interface. Multiple fix attempts have failed. Next developer must prioritize this issue.
 
-**✅ PRODUCTION READY (v1.0)**: Authentication (multi-PDS), Timeline viewing, Image thumbnails, Professional UI/UX, Zero compilation errors  
-**🔄 IN PROGRESS**: Post composition, Social interactions  
-**📋 PLANNED**: Real-time updates, Search, Profile management, PDS admin tools
-
-**Last Tested**: 2025-06-08 - All core functionality working flawlessly, timeline displaying real posts with thumbnails, multi-PDS authentication successful, UI optimized for desktop and mobile
-
-**Performance**: Zero TypeScript errors, clean compilation, optimized component structure, smooth 60fps interactions
-
-**Ready for**: Production deployment, team handoff, feature expansion, user testing
+**Files Affected**: `src/components/full-dashboard.tsx`  
+**Problem**: Grid layout system not properly constraining terminal widget size  
+**Required Fix**: Terminal should occupy 1/3 of screen width in responsive 3-column grid
