@@ -159,68 +159,46 @@ const FullDashboard = () => {
         </AnimatePresence>
 
         <main className="flex-1 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            
-            <Widget title="Terminal" icon={Terminal}>
-              <div className="bg-black rounded p-3 font-mono text-green-400 text-sm h-20">
-                <div>$ tail -f /var/log/pds.log</div>
-                <div className="text-gray-400 text-xs">INFO: Federation sync completed</div>
-                <div>$ <span className="animate-pulse">|</span></div>
-              </div>
-            </Widget>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div>
+              <TerminalWidget />
+            </div>
             
             <Widget title="System Metrics" icon={Activity}>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="text-center">
-                  <div className="text-xl font-bold text-blue-400">{mockMetrics.cpu}%</div>
-                  <div className="text-xs text-gray-400">CPU</div>
+                  <div className="text-2xl font-bold text-blue-400">{mockMetrics.cpu}%</div>
+                  <div className="text-sm text-gray-400">CPU Usage</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl font-bold text-green-400">{mockMetrics.memory}%</div>
-                  <div className="text-xs text-gray-400">Memory</div>
+                  <div className="text-2xl font-bold text-green-400">{mockMetrics.memory}%</div>
+                  <div className="text-sm text-gray-400">Memory</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl font-bold text-green-400">{mockMetrics.pdsUptime}</div>
-                  <div className="text-xs text-gray-400">Uptime</div>
+                  <div className="text-2xl font-bold text-green-400">{mockMetrics.pdsUptime}</div>
+                  <div className="text-sm text-gray-400">PDS Uptime</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-xl font-bold text-blue-400">{mockMetrics.activeUsers}</div>
-                  <div className="text-xs text-gray-400">Users</div>
+                  <div className="text-2xl font-bold text-blue-400">{mockMetrics.activeUsers}</div>
+                  <div className="text-sm text-gray-400">Active Users</div>
                 </div>
               </div>
             </Widget>
 
             <Widget title="Alerts" icon={AlertTriangle}>
               <div className="space-y-2">
-                {mockAlerts.slice(0, 2).map((alert) => (
+                {mockAlerts.map((alert) => (
                   <div key={alert.id} className="flex items-start space-x-2 p-2 rounded">
-                    <div className={`w-2 h-2 rounded-full mt-1 ${
+                    <div className={`w-2 h-2 rounded-full mt-2 ${
                       alert.type === 'error' ? 'bg-red-400' :
                       alert.type === 'warning' ? 'bg-yellow-400' : 'bg-blue-400'
                     }`} />
                     <div className="flex-1">
-                      <div className="text-xs text-gray-300">{alert.message}</div>
+                      <div className="text-sm text-gray-300">{alert.message}</div>
                       <div className="text-xs text-gray-500">{alert.time}</div>
                     </div>
                   </div>
                 ))}
-              </div>
-            </Widget>
-
-            <Widget title="AT Protocol" icon={MessageSquare}>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Status</span>
-                  <span className="text-green-400">Online</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Posts</span>
-                  <span className="text-blue-400">1.2k</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Federation</span>
-                  <span className="text-green-400">Connected</span>
-                </div>
               </div>
             </Widget>
           </div>
