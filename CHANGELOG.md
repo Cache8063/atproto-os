@@ -172,6 +172,26 @@ atproto-test/
 
 ## Recent Milestones
 
+### 2025-06-08 - v1.0.1 Custom PDS Compatibility & Timeline Polish
+- ✅ **Custom PDS Timeline Support**: Fixed timeline loading for custom PDS servers
+  - **Image Embed Compatibility**: Resolved `img.image is undefined` errors with flexible image structure handling
+  - **Fallback Logic**: Added graceful degradation when timeline API fails on custom PDS
+  - **Enhanced Debugging**: Comprehensive error logging and image structure detection
+  - **Multi-format Support**: Handles different image reference formats (`img.image.ref`, `img.ref`, `img.cid`)
+
+- ✅ **Timeline UI Optimization**: Achieved true compact mobile-style layout
+  - **Ultra-Compact Width**: Reduced to 256px (`w-64`) for proper mobile density
+  - **Micro Post Design**: 24px avatars, minimal padding, `text-xs` throughout
+  - **Button Proportions**: Fixed inconsistent button sizes - all `3x3` icons with equal spacing
+  - **Thumbnail Images**: Actual small thumbnails (48px height) instead of oversized photos
+  - **High Density Layout**: Maximum posts per screen with optimized spacing
+
+- ✅ **Cross-PDS Validation**: Confirmed working with both custom and standard PDS
+  - **arcnode.xyz**: Custom PDS timeline loading successfully
+  - **bsky.social**: Standard Bluesky compatibility maintained
+  - **Error Resilience**: Graceful handling of different PDS API implementations
+  - **Image CDN Fallbacks**: Smart image URL generation with error handling
+
 ### 2025-06-08 - UI/UX Polish & Syntax Fixes (v1.0 Production Ready)
 - ✅ **UI/UX Improvements**: Major polish updates for production readiness
   - **Timeline Width**: Reduced from full-width to 1/3 screen width (max-w-sm) for better desktop experience
