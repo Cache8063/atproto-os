@@ -428,38 +428,36 @@ function TimelinePost({ post }: { post: Post }) {
   }
 
   return (
-    <div className="border-b border-gray-700 p-3 hover:bg-gray-800/30 transition-all duration-300">
-      <div className="flex space-x-3">
-        <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
+    <div className="border-b border-gray-700 p-2 hover:bg-gray-800/30 transition-all duration-300">
+      <div className="flex space-x-2">
+        <div className="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
           {post.author.avatar && !imageError ? (
             <img 
               src={String(post.author.avatar)} 
               alt={String(post.author.handle)}
-              className="w-8 h-8 rounded-full object-cover"
+              className="w-6 h-6 rounded-full object-cover"
               onError={() => setImageError(true)}
             />
           ) : (
-            <User className="w-4 h-4 text-gray-400" />
+            <User className="w-3 h-3 text-gray-400" />
           )}
         </div>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-2 text-xs">
-            <span className="font-semibold text-white truncate">
+          <div className="flex items-center space-x-1 text-xs">
+            <span className="font-medium text-white truncate max-w-16">
               {String(post.author.displayName || post.author.handle)}
             </span>
-            <span className="text-gray-400 truncate">@{String(post.author.handle)}</span>
-            <span className="text-gray-500">·</span>
-            <span className="text-gray-500">{formatTime(post.record.createdAt)}</span>
+            <span className="text-gray-500 text-xs">{formatTime(post.record.createdAt)}</span>
           </div>
           
-          <div className="mt-1 text-white text-sm leading-relaxed">
+          <div className="mt-1 text-white text-xs leading-tight">
             {String(post.record.text)}
           </div>
 
           {post.embed?.images && post.embed.images.length > 0 && (
-            <div className="mt-2 grid grid-cols-2 gap-1">
-              {post.embed.images.slice(0, 4).map((img, index) => {
+            <div className="mt-1 grid grid-cols-2 gap-1">
+              {post.embed.images.slice(0, 2).map((img, index) => {
                 const imageUrl = img.image.ref 
                   ? `https://cdn.bsky.app/img/feed_thumbnail/plain/${post.author.did}/${img.image.ref}@jpeg`
                   : null
@@ -467,12 +465,12 @@ function TimelinePost({ post }: { post: Post }) {
                 return imageUrl ? (
                   <div 
                     key={index}
-                    className="relative w-full h-20 rounded overflow-hidden bg-gray-700"
+                    className="relative w-full h-12 rounded overflow-hidden bg-gray-700"
                   >
                     <img
                       src={imageUrl}
                       alt={img.alt || 'Image'}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-cover"
                       onError={(e) => {
                         e.currentTarget.style.display = 'none'
                       }}
@@ -483,31 +481,27 @@ function TimelinePost({ post }: { post: Post }) {
             </div>
           )}
           
-          <div className="flex items-center space-x-4 mt-2 text-gray-400">
-            <button className="flex items-center space-x-1 hover:text-blue-400 transition-all duration-300 text-xs">
+          <div className="flex items-center justify-between mt-1 text-gray-500">
+            <button className="flex items-center space-x-1 hover:text-blue-400 transition-colors p-1">
               <MessageCircle className="w-3 h-3" />
-              <span>{String(post.replyCount || 0)}</span>
+              <span className="text-xs">{String(post.replyCount || 0)}</span>
             </button>
             
-            <button className="flex items-center space-x-1 hover:text-green-400 transition-all duration-300 text-xs">
+            <button className="flex items-center space-x-1 hover:text-green-400 transition-colors p-1">
               <Repeat2 className="w-3 h-3" />
-              <span>{String(post.repostCount || 0)}</span>
+              <span className="text-xs">{String(post.repostCount || 0)}</span>
             </button>
             
-            <button className="flex items-center space-x-1 hover:text-red-400 transition-all duration-300 text-xs">
+            <button className="flex items-center space-x-1 hover:text-red-400 transition-colors p-1">
               <Heart className="w-3 h-3" />
-              <span>{String(post.likeCount || 0)}</span>
+              <span className="text-xs">{String(post.likeCount || 0)}</span>
             </button>
             
-            <button className="hover:text-gray-300 transition-all duration-300">
-              <Share className="w-3 h-3" />
+            <button className="hover:text-gray-300 transition-colors p-1">
+              <MoreHorizontal className="w-3 h-3" />
             </button>
           </div>
         </div>
-        
-        <button className="p-1 hover:bg-gray-700 rounded-full transition-all duration-200 flex-shrink-0">
-          <MoreHorizontal className="w-3 h-3 text-gray-400" />
-        </button>
       </div>
     </div>
   )
@@ -748,9 +742,9 @@ export default function Dashboard() {
 
         <main className="flex-1">
           {currentView === 'timeline' && (
-            <div className="w-80 mx-auto border-x border-gray-700 min-h-screen">
-              <div className="sticky top-0 bg-gray-900/90 backdrop-blur-md border-b border-gray-700 p-4">
-                <h2 className="text-xl font-bold">Home Timeline</h2>
+            <div className="w-64 mx-auto border-x border-gray-700 min-h-screen">
+              <div className="sticky top-0 bg-gray-900/90 backdrop-blur-md border-b border-gray-700 p-3">
+                <h2 className="text-lg font-bold">Timeline</h2>
               </div>
               <Timeline />
             </div>
