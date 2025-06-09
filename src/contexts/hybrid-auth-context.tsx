@@ -1,80 +1,140 @@
-'use client'
-import React, { createContext, useContext, useState, ReactNode } from 'react'
-import { hybridATProtoAuth, AuthSession, AuthCredentials } from '@/lib/hybrid-atproto-auth'
+import { BskyAgent } from '@atproto/api'
 
-interface AuthContextType {
-  session: AuthSession | null
-  profile: any | null
-  service: string | null
-  loading: boolean
-  login: (credentials: AuthCredentials) => Promise<void>
-  logout: () => Promise<void>
-  isAuthenticated: boolean
+export interface AuthSession {
+  accessJwt: string
+  refreshJwt: string
+  handle: string
+  did: string
+  active: boolean
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+export interface AuthCredentials {
+  identifier: string
+  password: string
+  service?: string
+}
 
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
+class HybridATProtoAuth {
+  private agent: BskyAgent | null = null
+  private session: AuthSession | null = null
+  private currentService: string = 'https://bsky.social'
+
+  // Detect service from handle
+  private detectServiceFromHandle(identifier: string): string {
+    if (identifier.includes('.arcnode.xyz')) {
+      return 'https://arcnode.xyz'
+    }
+    if (identifier.includes('.')) {
+      // Extract domain from handle like user.mydomain.com
+      const parts = identifier.split('.')
+      if (parts.length >= 2) {
+        const domain = parts.slice(-2).join('.')
+        if (domain !== 'bsky.social') {
+          return `https://${domain}`
+        }
+      }
+    }
+    return 'https://bsky.social'
   }
-  return context
-}
 
-interface AuthProviderProps {
-  children: ReactNode
-}
-
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [session, setSession] = useState<AuthSession | null>(null)
-  const [profile, setProfile] = useState<any | null>(null)
-  const [service, setService] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-
-  const login = async (credentials: AuthCredentials) => {
-    setLoading(true)
+  async login(credentials: AuthCredentials): Promise<{ success: boolean; session?: AuthSession; profile?: any; service?: string }> {
     try {
-      const result = await hybridATProtoAuth.login(credentials)
+      // Determine service
+      const service = credentials.service || this.detectServiceFromHandle(credentials.identifier)
+      this.currentService = service
       
-      if (result.success && result.session) {
-        setSession(result.session)
-        setProfile(result.profile || null)
-        setService(result.service || null)
-        console.log(`Successfully logged in to ${result.service}`)
+      // Create agent for the detected/specified service
+      this.agent = new BskyAgent({ service })
+      
+      console.log(`Connecting to: ${service}`)
+      const response = await this.agent.login({
+        identifier: credentials.identifier,
+        password: credentials.password
+      })
+      
+      if (response.success && this.agent.session) {
+        this.session = {
+          accessJwt: this.agent.session.accessJwt,
+          refreshJwt: this.agent.session.refreshJwt,
+          handle: this.agent.session.handle,
+          did: this.agent.session.did,
+          active: this.agent.session.active || true
+        }
+
+        // Fetch user profile
+        let profile = null
+        try {
+          const profileResponse = await this.agent.getProfile({
+            actor: this.session.handle
+          })
+          profile = profileResponse.data
+          console.log(`Profile loaded from ${service}:`, profile)
+        } catch (error) {
+          console.error(`Error fetching profile from ${service}:`, error)
+        }
+
+        return {
+          success: true,
+          session: this.session,
+          profile,
+          service
+        }
       } else {
         throw new Error('Login failed')
       }
     } catch (error) {
-      console.error('Login error:', error)
+      console.error(`AT Protocol login error:`, error)
       throw error
-    } finally {
-      setLoading(false)
     }
   }
 
-  const logout = async () => {
-    await hybridATProtoAuth.logout()
-    setSession(null)
-    setProfile(null)
-    setService(null)
+  async logout(): Promise<void> {
+    this.session = null
+    this.agent = null
   }
 
-  const isAuthenticated = session !== null
-
-  const value: AuthContextType = {
-    session,
-    profile,
-    service,
-    loading,
-    login,
-    logout,
-    isAuthenticated
+  isAuthenticated(): boolean {
+    return this.session !== null && this.agent !== null
   }
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  )
+  getSession(): AuthSession | null {
+    return this.session
+  }
+
+  getCurrentService(): string {
+    return this.currentService
+  }
+
+  // NEW: Get authenticated agent for making API calls
+  getAgent(): BskyAgent | null {
+    return this.agent
+  }
+
+  // Method to check service health
+  async checkServiceHealth(service: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${service}/.well-known/atproto-did`)
+      return response.ok
+    } catch (error) {
+      console.error(`Service health check failed for ${service}:`, error)
+      return false
+    }
+  }
+
+  // NEW: Refresh session if needed
+  async refreshSession(): Promise<boolean> {
+    if (!this.agent || !this.session) {
+      return false
+    }
+
+    try {
+      await this.agent.resumeSession(this.session)
+      return true
+    } catch (error) {
+      console.error('Session refresh failed:', error)
+      return false
+    }
+  }
 }
+
+export const hybridATProtoAuth = new HybridATProtoAuth()

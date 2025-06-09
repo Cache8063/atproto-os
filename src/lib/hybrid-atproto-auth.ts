@@ -94,7 +94,7 @@ class HybridATProtoAuth {
   }
 
   isAuthenticated(): boolean {
-    return this.session !== null
+    return this.session !== null && this.agent !== null
   }
 
   getSession(): AuthSession | null {
@@ -105,6 +105,11 @@ class HybridATProtoAuth {
     return this.currentService
   }
 
+  // NEW: Get authenticated agent for making API calls
+  getAgent(): BskyAgent | null {
+    return this.agent
+  }
+
   // Method to check service health
   async checkServiceHealth(service: string): Promise<boolean> {
     try {
@@ -112,6 +117,21 @@ class HybridATProtoAuth {
       return response.ok
     } catch (error) {
       console.error(`Service health check failed for ${service}:`, error)
+      return false
+    }
+  }
+
+  // NEW: Refresh session if needed
+  async refreshSession(): Promise<boolean> {
+    if (!this.agent || !this.session) {
+      return false
+    }
+
+    try {
+      await this.agent.resumeSession(this.session)
+      return true
+    } catch (error) {
+      console.error('Session refresh failed:', error)
       return false
     }
   }

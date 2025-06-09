@@ -13,6 +13,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
+import TimelineWidget from './timeline-widget';
 
 interface SystemMetrics {
   cpu: {
@@ -51,12 +52,12 @@ const mockAlerts = [
   { id: 3, type: 'error', message: 'Failed to connect to federation peer', time: '8 min ago' }
 ];
 
-const Widget = ({ title, icon: Icon, children }) => {
+const Widget = ({ title, icon: Icon, children, className = "" }) => {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/30 p-6"
+      className={`bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/30 p-6 ${className}`}
     >
       <div className="flex items-center space-x-3 mb-4">
         <Icon className="w-5 h-5 text-blue-400" />
@@ -211,6 +212,10 @@ const FullDashboard = () => {
                   <span>Dashboard</span>
                 </a>
                 <a href="#" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50">
+                  <MessageSquare className="w-5 h-5" />
+                  <span>Timeline</span>
+                </a>
+                <a href="#" className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50">
                   <Terminal className="w-5 h-5" />
                   <span>Terminal</span>
                 </a>
@@ -224,101 +229,135 @@ const FullDashboard = () => {
         </AnimatePresence>
 
         <main className="flex-1 p-6">
+          {/* Updated Grid Layout - 3 columns for better proportions */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div>
+            
+            {/* Terminal Widget - spans 1 column */}
+            <div className="lg:col-span-1">
               <TerminalWidget />
             </div>
             
-            <Widget title="System Metrics" icon={Activity}>
-              {metricsLoading ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
-                </div>
-              ) : metricsError ? (
-                <div className="text-red-400 text-sm p-4 text-center">
-                  {metricsError}
-                  <button 
-                    onClick={fetchSystemMetrics}
-                    className="block mt-2 text-blue-400 hover:text-blue-300"
-                  >
-                    Retry
-                  </button>
-                </div>
-              ) : systemMetrics ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="text-center">
-                    <div className={`text-2xl font-bold ${
-                      systemMetrics.cpu.usage > 80 ? 'text-red-400' : 
-                      systemMetrics.cpu.usage > 60 ? 'text-yellow-400' : 'text-blue-400'
-                    }`}>
-                      {Math.round(systemMetrics.cpu.usage)}%
-                    </div>
-                    <div className="text-sm text-gray-400">CPU Usage</div>
-                    <div className="text-xs text-gray-500">{systemMetrics.cpu.cores} cores</div>
-                  </div>
-                  <div className="text-center">
-                    <div className={`text-2xl font-bold ${
-                      systemMetrics.memory.percentage > 80 ? 'text-red-400' : 
-                      systemMetrics.memory.percentage > 60 ? 'text-yellow-400' : 'text-green-400'
-                    }`}>
-                      {systemMetrics.memory.percentage}%
-                    </div>
-                    <div className="text-sm text-gray-400">Memory</div>
-                    <div className="text-xs text-gray-500">
-                      {systemMetrics.memory.usedGB}GB / {systemMetrics.memory.totalGB}GB
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-400">{systemMetrics.uptime.formatted}</div>
-                    <div className="text-sm text-gray-400">Uptime</div>
-                    <div className="text-xs text-gray-500">
-                      {systemMetrics.uptime.days > 0 && `${systemMetrics.uptime.days}d `}
-                      {systemMetrics.uptime.hours}h {systemMetrics.uptime.minutes}m
-                    </div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-400">{activeUsers}</div>
-                    <div className="text-sm text-gray-400">Active Users</div>
-                    <div className="text-xs text-gray-500">Estimated</div>
-                  </div>
-                </div>
-              ) : null}
-            </Widget>
+            {/* Timeline Widget - spans 1 column, proportionate to other widgets */}
+            <div className="lg:col-span-1">
+              <TimelineWidget />
+            </div>
 
-            <Widget title="Alerts" icon={AlertTriangle}>
-              <div className="space-y-2">
-                {systemMetrics && systemMetrics.memory.percentage > 80 && (
-                  <div className="flex items-start space-x-2 p-2 rounded bg-red-900/20 border border-red-800">
-                    <div className="w-2 h-2 rounded-full mt-2 bg-red-400" />
-                    <div className="flex-1">
-                      <div className="text-sm text-red-300">High memory usage: {systemMetrics.memory.percentage}%</div>
-                      <div className="text-xs text-red-500">Live alert</div>
+            {/* System Metrics Widget - spans 1 column */}
+            <div className="lg:col-span-1">
+              <Widget title="System Metrics" icon={Activity}>
+                {metricsLoading ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+                  </div>
+                ) : metricsError ? (
+                  <div className="text-red-400 text-sm p-4 text-center">
+                    {metricsError}
+                    <button 
+                      onClick={fetchSystemMetrics}
+                      className="block mt-2 text-blue-400 hover:text-blue-300"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                ) : systemMetrics ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <div className={`text-2xl font-bold ${
+                        systemMetrics.cpu.usage > 80 ? 'text-red-400' : 
+                        systemMetrics.cpu.usage > 60 ? 'text-yellow-400' : 'text-blue-400'
+                      }`}>
+                        {Math.round(systemMetrics.cpu.usage)}%
+                      </div>
+                      <div className="text-sm text-gray-400">CPU Usage</div>
+                      <div className="text-xs text-gray-500">{systemMetrics.cpu.cores} cores</div>
+                    </div>
+                    <div className="text-center">
+                      <div className={`text-2xl font-bold ${
+                        systemMetrics.memory.percentage > 80 ? 'text-red-400' : 
+                        systemMetrics.memory.percentage > 60 ? 'text-yellow-400' : 'text-green-400'
+                      }`}>
+                        {systemMetrics.memory.percentage}%
+                      </div>
+                      <div className="text-sm text-gray-400">Memory</div>
+                      <div className="text-xs text-gray-500">
+                        {systemMetrics.memory.usedGB}GB / {systemMetrics.memory.totalGB}GB
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-400">{systemMetrics.uptime.formatted}</div>
+                      <div className="text-sm text-gray-400">Uptime</div>
+                      <div className="text-xs text-gray-500">
+                        {systemMetrics.uptime.days > 0 && `${systemMetrics.uptime.days}d `}
+                        {systemMetrics.uptime.hours}h {systemMetrics.uptime.minutes}m
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-blue-400">{activeUsers}</div>
+                      <div className="text-sm text-gray-400">Active Users</div>
+                      <div className="text-xs text-gray-500">Estimated</div>
                     </div>
                   </div>
-                )}
-                {systemMetrics && systemMetrics.cpu.usage > 80 && (
-                  <div className="flex items-start space-x-2 p-2 rounded bg-yellow-900/20 border border-yellow-800">
-                    <div className="w-2 h-2 rounded-full mt-2 bg-yellow-400" />
-                    <div className="flex-1">
-                      <div className="text-sm text-yellow-300">High CPU usage: {Math.round(systemMetrics.cpu.usage)}%</div>
-                      <div className="text-xs text-yellow-500">Live alert</div>
+                ) : null}
+              </Widget>
+            </div>
+
+            {/* Alerts Widget - spans 2 columns */}
+            <div className="md:col-span-2 lg:col-span-2">
+              <Widget title="Alerts" icon={AlertTriangle}>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {systemMetrics && systemMetrics.memory.percentage > 80 && (
+                    <div className="flex items-start space-x-2 p-2 rounded bg-red-900/20 border border-red-800">
+                      <div className="w-2 h-2 rounded-full mt-2 bg-red-400" />
+                      <div className="flex-1">
+                        <div className="text-sm text-red-300">High memory usage: {systemMetrics.memory.percentage}%</div>
+                        <div className="text-xs text-red-500">Live alert</div>
+                      </div>
                     </div>
-                  </div>
-                )}
-                {mockAlerts.slice(0, 2).map((alert) => (
-                  <div key={alert.id} className="flex items-start space-x-2 p-2 rounded">
-                    <div className={`w-2 h-2 rounded-full mt-2 ${
-                      alert.type === 'error' ? 'bg-red-400' :
-                      alert.type === 'warning' ? 'bg-yellow-400' : 'bg-blue-400'
-                    }`} />
-                    <div className="flex-1">
-                      <div className="text-sm text-gray-300">{alert.message}</div>
-                      <div className="text-xs text-gray-500">{alert.time}</div>
+                  )}
+                  {systemMetrics && systemMetrics.cpu.usage > 80 && (
+                    <div className="flex items-start space-x-2 p-2 rounded bg-yellow-900/20 border border-yellow-800">
+                      <div className="w-2 h-2 rounded-full mt-2 bg-yellow-400" />
+                      <div className="flex-1">
+                        <div className="text-sm text-yellow-300">High CPU usage: {Math.round(systemMetrics.cpu.usage)}%</div>
+                        <div className="text-xs text-yellow-500">Live alert</div>
+                      </div>
                     </div>
+                  )}
+                  {mockAlerts.slice(0, 4).map((alert) => (
+                    <div key={alert.id} className="flex items-start space-x-2 p-2 rounded">
+                      <div className={`w-2 h-2 rounded-full mt-2 ${
+                        alert.type === 'error' ? 'bg-red-400' :
+                        alert.type === 'warning' ? 'bg-yellow-400' : 'bg-blue-400'
+                      }`} />
+                      <div className="flex-1">
+                        <div className="text-sm text-gray-300">{alert.message}</div>
+                        <div className="text-xs text-gray-500">{alert.time}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Widget>
+            </div>
+
+            {/* AT Protocol Stats Widget - spans 1 column */}
+            <div className="lg:col-span-1">
+              <Widget title="AT Protocol Stats" icon={Users}>
+                <div className="space-y-3">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-400">1.2K</div>
+                    <div className="text-sm text-gray-400">Posts Today</div>
                   </div>
-                ))}
-              </div>
-            </Widget>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-400">45</div>
+                    <div className="text-sm text-gray-400">Active Peers</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-400">98%</div>
+                    <div className="text-sm text-gray-400">Sync Health</div>
+                  </div>
+                </div>
+              </Widget>
+            </div>
           </div>
         </main>
       </div>
