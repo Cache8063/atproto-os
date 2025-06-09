@@ -67,27 +67,21 @@ class ATProtoAuth {
   private session: AuthSession | null = null
 
   constructor() {
-    // Don't hardcode service - let it resolve from handle
     this.agent = new BskyAgent({
-      service: 'https://bsky.social' // Default fallback
+      service: 'https://bsky.social'
     })
   }
 
   private async resolveServiceFromHandle(identifier: string): Promise<string> {
-    // Handle email addresses - always use bsky.social
     if (identifier.includes('@') && identifier.includes('.')) {
       return 'https://bsky.social'
     }
     
-    // Handle custom domains (not ending in .bsky.social)
     if (identifier.includes('.') && !identifier.endsWith('.bsky.social')) {
       try {
-        // Extract domain from handle (e.g., "user.example.com" -> "example.com")
         const parts = identifier.split('.')
         if (parts.length >= 2) {
           const domain = parts.slice(-2).join('.')
-          
-          // Try HTTPS first, then HTTP as fallback
           return `https://${domain}`
         }
       } catch (error) {
@@ -95,16 +89,13 @@ class ATProtoAuth {
       }
     }
     
-    // Default to bsky.social for .bsky.social handles or when resolution fails
     return 'https://bsky.social'
   }
 
   async login(credentials: AuthCredentials): Promise<AuthSession> {
     try {
-      // Resolve the appropriate service for this user
       const serviceUrl = await this.resolveServiceFromHandle(credentials.identifier)
       
-      // Create new agent with resolved service
       this.agent = new BskyAgent({
         service: String(serviceUrl)
       })
@@ -128,7 +119,6 @@ class ATProtoAuth {
     } catch (error) {
       console.error('AT Protocol login error:', error)
       
-      // If login failed and we tried a custom service, fall back to bsky.social
       if (String(this.agent.service) !== 'https://bsky.social') {
         console.log('Custom PDS login failed, retrying with bsky.social...')
         try {
@@ -226,8 +216,7 @@ function LoginModal({ onClose, onLogin, loading = false }: {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
-  const handleSubmit = async (e?: any) => {
-    if (e) e.preventDefault()
+  const handleSubmit = async () => {
     setError('')
 
     if (!identifier || !password) {
@@ -241,7 +230,6 @@ function LoginModal({ onClose, onLogin, loading = false }: {
     } catch (error: any) {
       console.error('Login error:', error)
       
-      // Provide more specific error messages
       if (error.message?.includes('Invalid identifier')) {
         setError('Invalid username/handle. Check your handle format.')
       } else if (error.message?.includes('Invalid password')) {
@@ -293,7 +281,7 @@ function LoginModal({ onClose, onLogin, loading = false }: {
               placeholder="handle.bsky.social or your.domain"
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={loading}
-              onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
             />
             <p className="text-xs text-gray-500 mt-1">
               Supports Bluesky handles, custom domains, or email addresses
@@ -311,7 +299,7 @@ function LoginModal({ onClose, onLogin, loading = false }: {
               placeholder="Your password"
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
               disabled={loading}
-              onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
             />
           </div>
 
@@ -368,12 +356,7 @@ function TimelinePost({ post }: { post: Post }) {
   return (
     <div className="border-b border-gray-700 p-4 hover:bg-gray-800/30 transition-all duration-300">
       <div className="flex space-x-3">
-        <motion.div 
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-          className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center"
-        >
+        <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
           {post.author.avatar && !imageError ? (
             <img 
               src={String(post.author.avatar)} 
@@ -384,40 +367,24 @@ function TimelinePost({ post }: { post: Post }) {
           ) : (
             <User className="w-5 h-5 text-gray-400" />
           )}
-        </motion.div>
+        </div>
         
         <div className="flex-1 min-w-0">
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="flex items-center space-x-2 text-sm"
-          >
+          <div className="flex items-center space-x-2 text-sm">
             <span className="font-semibold text-white">
               {String(post.author.displayName || post.author.handle)}
             </span>
             <span className="text-gray-400">@{String(post.author.handle)}</span>
             <span className="text-gray-500">·</span>
             <span className="text-gray-500">{formatTime(post.record.createdAt)}</span>
-          </motion.div>
+          </div>
           
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-            className="mt-1 text-white whitespace-pre-wrap text-sm leading-relaxed"
-          >
+          <div className="mt-1 text-white whitespace-pre-wrap text-sm leading-relaxed">
             {String(post.record.text)}
-          </motion.div>
+          </div>
 
-          {/* Image thumbnails */}
           {post.embed?.images && post.embed.images.length > 0 && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.4, delay: 0.4 }}
-              className="mt-3 grid grid-cols-2 gap-2"
-            >
+            <div className="mt-3 grid grid-cols-2 gap-2">
               {post.embed.images.slice(0, 4).map((img, index) => (
                 <div 
                   key={index}
@@ -430,15 +397,10 @@ function TimelinePost({ post }: { post: Post }) {
                   />
                 </div>
               ))}
-            </motion.div>
+            </div>
           )}
           
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.5 }}
-            className="flex items-center space-x-6 mt-3 text-gray-400"
-          >
+          <div className="flex items-center space-x-6 mt-3 text-gray-400">
             <button className="flex items-center space-x-1 hover:text-blue-400 transition-all duration-300 transform hover:scale-105">
               <MessageCircle className="w-4 h-4" />
               <span className="text-sm">{String(post.replyCount || 0)}</span>
@@ -494,18 +456,9 @@ function Timeline() {
 
   if (loading) {
     return (
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-        className="flex items-center justify-center h-64"
-      >
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
-          className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full"
-        ></motion.div>
-      </motion.div>
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
+      </div>
     )
   }
 
@@ -525,15 +478,8 @@ function Timeline() {
 
   return (
     <div className="divide-y divide-gray-700">
-      {posts.map((post, index) => (
-        <motion.div
-          key={post.uri}
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: index * 0.1, ease: "easeOut" }}
-        >
-          <TimelinePost post={post} />
-        </motion.div>
+      {posts.map((post) => (
+        <TimelinePost key={post.uri} post={post} />
       ))}
     </div>
   )
@@ -547,29 +493,17 @@ function Widget({ title, icon: Icon, children, className = '' }: {
   className?: string
 }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
+    <div
       className={`bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/30 p-6 hover:border-gray-600/50 transition-all duration-400 ${className}`}
     >
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-        className="flex items-center space-x-3 mb-4"
-      >
+      <div className="flex items-center space-x-3 mb-4">
         <Icon className="w-5 h-5 text-blue-400" />
         <h3 className="text-lg font-semibold text-white">{title}</h3>
-      </motion.div>
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-      >
+      </div>
+      <div>
         {children}
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   )
 }
 
@@ -583,14 +517,12 @@ export default function Dashboard() {
   const [currentTime, setCurrentTime] = useState('')
 
   useEffect(() => {
-    // Show login modal if not authenticated
     if (!atprotoAuth.isAuthenticated()) {
       setShowLogin(true)
     } else {
       setSession(atprotoAuth.getSession())
     }
 
-    // Update time
     setCurrentTime(new Date().toLocaleTimeString())
     const timer = setInterval(() => {
       setCurrentTime(new Date().toLocaleTimeString())
@@ -606,7 +538,7 @@ export default function Dashboard() {
       setSession(newSession)
       setShowLogin(false)
     } catch (error) {
-      throw error // Re-throw to be handled by login modal
+      throw error
     } finally {
       setLoading(false)
     }
@@ -643,7 +575,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
-      {/* Header */}
       <header className="border-b border-gray-700/50 bg-gray-800/30 backdrop-blur-sm">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-4">
@@ -688,7 +619,6 @@ export default function Dashboard() {
       </header>
 
       <div className="flex">
-        {/* Sidebar */}
         <AnimatePresence>
           {sidebarOpen && (
             <motion.aside
@@ -699,10 +629,7 @@ export default function Dashboard() {
               className="w-64 bg-gray-800/50 backdrop-blur-sm border-r border-gray-700/30 p-4"
             >
               <nav className="space-y-2">
-                <motion.button
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: 0.1 }}
+                <button
                   onClick={() => setCurrentView('timeline')}
                   className={`w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50 transition-all duration-300 ${
                     currentView === 'timeline' ? 'bg-gray-700/50' : ''
@@ -710,11 +637,8 @@ export default function Dashboard() {
                 >
                   <Home className="w-5 h-5" />
                   <span>Timeline</span>
-                </motion.button>
-                <motion.button
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: 0.2 }}
+                </button>
+                <button
                   onClick={() => setCurrentView('dashboard')}
                   className={`w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50 transition-all duration-300 ${
                     currentView === 'dashboard' ? 'bg-gray-700/50' : ''
@@ -722,11 +646,8 @@ export default function Dashboard() {
                 >
                   <Activity className="w-5 h-5" />
                   <span>Dashboard</span>
-                </motion.button>
-                <motion.button
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: 0.3 }}
+                </button>
+                <button
                   onClick={() => setCurrentView('terminal')}
                   className={`w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-700/50 transition-all duration-300 ${
                     currentView === 'terminal' ? 'bg-gray-700/50' : ''
@@ -734,35 +655,24 @@ export default function Dashboard() {
                 >
                   <Terminal className="w-5 h-5" />
                   <span>Terminal</span>
-                </motion.button>
+                </button>
               </nav>
             </motion.aside>
           )}
         </AnimatePresence>
 
-        {/* Main Content */}
         <main className="flex-1">
           {currentView === 'timeline' && (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-              className="max-w-sm mx-auto border-x border-gray-700 min-h-screen"
-            >
+            <div className="max-w-sm mx-auto border-x border-gray-700 min-h-screen">
               <div className="sticky top-0 bg-gray-900/90 backdrop-blur-md border-b border-gray-700 p-4">
                 <h2 className="text-xl font-bold">Home Timeline</h2>
               </div>
               <Timeline />
-            </motion.div>
+            </div>
           )}
 
           {currentView === 'dashboard' && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
-              className="p-6"
-            >
+            <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <Widget title="System Metrics" icon={Activity}>
                   <div className="grid grid-cols-2 gap-4">
@@ -789,7 +699,7 @@ export default function Dashboard() {
                   <div className="space-y-3">
                     <div className="flex justify-between">
                       <span className="text-gray-300">Handle</span>
-                      <span className="text-blue-400">@{session.handle}</span>
+                      <span className="text-blue-400">@{String(session.handle)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-300">Status</span>
@@ -809,16 +719,11 @@ export default function Dashboard() {
                   </div>
                 </Widget>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {currentView === 'terminal' && (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
-              className="p-6"
-            >
+            <div className="p-6">
               <Widget title="Terminal" icon={Terminal} className="h-96">
                 <div className="bg-black rounded p-4 h-full font-mono text-green-400 text-sm">
                   <div>user@atproto-dashboard:~$ ps aux | grep bsky</div>
@@ -826,7 +731,7 @@ export default function Dashboard() {
                   <div>user@atproto-dashboard:~$ <span className="animate-pulse">|</span></div>
                 </div>
               </Widget>
-            </motion.div>
+            </div>
           )}
         </main>
       </div>
