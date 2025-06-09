@@ -73,7 +73,7 @@ const TerminalWidget = () => {
 
   return (
     <Widget title="Terminal" icon={Terminal}>
-      <div className="bg-black rounded p-3 font-mono text-green-400 text-sm h-20">
+      <div className="bg-black rounded p-3 font-mono text-green-400 text-sm h-24">
         <div>$ tail -f /var/log/pds.log</div>
         <div className="text-gray-400 text-xs">INFO: Federation sync completed</div>
         <div>$ <span className="animate-pulse">|</span></div>
