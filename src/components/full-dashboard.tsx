@@ -14,12 +14,36 @@ import {
   X
 } from 'lucide-react';
 
-const mockMetrics = {
-  cpu: 45,
-  memory: 62,
-  pdsUptime: '99.9%',
-  activeUsers: 127
-};
+interface SystemMetrics {
+  cpu: {
+    usage: number
+    cores: number
+    model: string
+    loadAverage: number[]
+  }
+  memory: {
+    total: number
+    used: number
+    free: number
+    percentage: number
+    totalGB: number
+    usedGB: number
+  }
+  uptime: {
+    seconds: number
+    formatted: string
+    days: number
+    hours: number
+    minutes: number
+  }
+  system: {
+    platform: string
+    architecture: string
+    hostname: string
+    nodeVersion: string
+  }
+  timestamp: string
+}
 
 const mockAlerts = [
   { id: 1, type: 'warning', message: 'High memory usage detected', time: '2 min ago' },
@@ -92,15 +116,51 @@ const FullDashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+  const [metricsError, setMetricsError] = useState<string | null>(null);
+
+  // Fetch system metrics
+  const fetchSystemMetrics = async () => {
+    try {
+      const response = await fetch('/api/metrics');
+      if (!response.ok) {
+        throw new Error('Failed to fetch metrics');
+      }
+      const data = await response.json();
+      setSystemMetrics(data);
+      setMetricsError(null);
+    } catch (error) {
+      console.error('Error fetching system metrics:', error);
+      setMetricsError('Failed to load system metrics');
+    } finally {
+      setMetricsLoading(false);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
     setCurrentTime(new Date().toLocaleTimeString());
-    const timer = setInterval(() => {
+    
+    // Update time every second
+    const timeTimer = setInterval(() => {
       setCurrentTime(new Date().toLocaleTimeString());
     }, 1000);
-    return () => clearInterval(timer);
+
+    // Fetch metrics initially
+    fetchSystemMetrics();
+    
+    // Update metrics every 5 seconds
+    const metricsTimer = setInterval(fetchSystemMetrics, 5000);
+
+    return () => {
+      clearInterval(timeTimer);
+      clearInterval(metricsTimer);
+    };
   }, []);
+
+  // Calculate active users (mock for now - could be real AT Protocol data later)
+  const activeUsers = systemMetrics ? Math.floor(systemMetrics.memory.percentage * 2.3) : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white">
@@ -114,6 +174,11 @@ const FullDashboard = () => {
               <Menu className="w-5 h-5" />
             </button>
             <h1 className="text-xl font-bold">AT Protocol Dashboard</h1>
+            {systemMetrics && (
+              <div className="text-xs text-gray-400">
+                {systemMetrics.system.hostname} • {systemMetrics.system.platform}
+              </div>
+            )}
           </div>
           
           <div className="flex items-center space-x-4">
@@ -165,29 +230,82 @@ const FullDashboard = () => {
             </div>
             
             <Widget title="System Metrics" icon={Activity}>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-400">{mockMetrics.cpu}%</div>
-                  <div className="text-sm text-gray-400">CPU Usage</div>
+              {metricsLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-400">{mockMetrics.memory}%</div>
-                  <div className="text-sm text-gray-400">Memory</div>
+              ) : metricsError ? (
+                <div className="text-red-400 text-sm p-4 text-center">
+                  {metricsError}
+                  <button 
+                    onClick={fetchSystemMetrics}
+                    className="block mt-2 text-blue-400 hover:text-blue-300"
+                  >
+                    Retry
+                  </button>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-400">{mockMetrics.pdsUptime}</div>
-                  <div className="text-sm text-gray-400">PDS Uptime</div>
+              ) : systemMetrics ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold ${
+                      systemMetrics.cpu.usage > 80 ? 'text-red-400' : 
+                      systemMetrics.cpu.usage > 60 ? 'text-yellow-400' : 'text-blue-400'
+                    }`}>
+                      {Math.round(systemMetrics.cpu.usage)}%
+                    </div>
+                    <div className="text-sm text-gray-400">CPU Usage</div>
+                    <div className="text-xs text-gray-500">{systemMetrics.cpu.cores} cores</div>
+                  </div>
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold ${
+                      systemMetrics.memory.percentage > 80 ? 'text-red-400' : 
+                      systemMetrics.memory.percentage > 60 ? 'text-yellow-400' : 'text-green-400'
+                    }`}>
+                      {systemMetrics.memory.percentage}%
+                    </div>
+                    <div className="text-sm text-gray-400">Memory</div>
+                    <div className="text-xs text-gray-500">
+                      {systemMetrics.memory.usedGB}GB / {systemMetrics.memory.totalGB}GB
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-400">{systemMetrics.uptime.formatted}</div>
+                    <div className="text-sm text-gray-400">Uptime</div>
+                    <div className="text-xs text-gray-500">
+                      {systemMetrics.uptime.days > 0 && `${systemMetrics.uptime.days}d `}
+                      {systemMetrics.uptime.hours}h {systemMetrics.uptime.minutes}m
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-400">{activeUsers}</div>
+                    <div className="text-sm text-gray-400">Active Users</div>
+                    <div className="text-xs text-gray-500">Estimated</div>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-400">{mockMetrics.activeUsers}</div>
-                  <div className="text-sm text-gray-400">Active Users</div>
-                </div>
-              </div>
+              ) : null}
             </Widget>
 
             <Widget title="Alerts" icon={AlertTriangle}>
               <div className="space-y-2">
-                {mockAlerts.map((alert) => (
+                {systemMetrics && systemMetrics.memory.percentage > 80 && (
+                  <div className="flex items-start space-x-2 p-2 rounded bg-red-900/20 border border-red-800">
+                    <div className="w-2 h-2 rounded-full mt-2 bg-red-400" />
+                    <div className="flex-1">
+                      <div className="text-sm text-red-300">High memory usage: {systemMetrics.memory.percentage}%</div>
+                      <div className="text-xs text-red-500">Live alert</div>
+                    </div>
+                  </div>
+                )}
+                {systemMetrics && systemMetrics.cpu.usage > 80 && (
+                  <div className="flex items-start space-x-2 p-2 rounded bg-yellow-900/20 border border-yellow-800">
+                    <div className="w-2 h-2 rounded-full mt-2 bg-yellow-400" />
+                    <div className="flex-1">
+                      <div className="text-sm text-yellow-300">High CPU usage: {Math.round(systemMetrics.cpu.usage)}%</div>
+                      <div className="text-xs text-yellow-500">Live alert</div>
+                    </div>
+                  </div>
+                )}
+                {mockAlerts.slice(0, 2).map((alert) => (
                   <div key={alert.id} className="flex items-start space-x-2 p-2 rounded">
                     <div className={`w-2 h-2 rounded-full mt-2 ${
                       alert.type === 'error' ? 'bg-red-400' :
