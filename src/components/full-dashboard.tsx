@@ -154,36 +154,110 @@ class ATProtoAuth {
     if (!this.session) throw new Error('Not authenticated')
     
     try {
-      const response = await this.agent.getTimeline({
-        limit: 20
-      })
+      console.log('Fetching timeline from:', this.agent.service)
+      console.log('Session info:', { handle: this.session.handle, did: this.session.did })
       
-      return response.data.feed.map((item: any) => ({
-        uri: String(item.post.uri),
-        cid: String(item.post.cid),
-        author: {
-          did: String(item.post.author.did),
-          handle: String(item.post.author.handle),
-          displayName: item.post.author.displayName ? String(item.post.author.displayName) : undefined,
-          avatar: item.post.author.avatar ? String(item.post.author.avatar) : undefined
-        },
-        record: {
-          text: String(item.post.record.text || ''),
-          createdAt: String(item.post.record.createdAt)
-        },
-        embed: item.post.embed?.images ? {
-          images: item.post.embed.images.map((img: any) => ({
-            alt: String(img.alt || ''),
-            image: { ref: String(img.image.ref) }
-          }))
-        } : undefined,
-        replyCount: Number(item.post.replyCount) || 0,
-        repostCount: Number(item.post.repostCount) || 0,
-        likeCount: Number(item.post.likeCount) || 0
-      }))
-    } catch (error) {
-      console.error('Error fetching timeline:', error)
-      throw error
+      // Try timeline first
+      try {
+        const response = await this.agent.getTimeline({
+          limit: 20
+        })
+        
+        console.log('Timeline response:', response)
+        
+        if (!response.data || !response.data.feed) {
+          throw new Error('Invalid timeline response format')
+        }
+
+        // Debug image embeds
+        response.data.feed.forEach((item: any, index: number) => {
+          if (item.post.embed?.images) {
+            console.log(`Post ${index} images:`, item.post.embed.images)
+          }
+        })
+        
+        return response.data.feed.map((item: any) => ({
+          uri: String(item.post.uri),
+          cid: String(item.post.cid),
+          author: {
+            did: String(item.post.author.did),
+            handle: String(item.post.author.handle),
+            displayName: item.post.author.displayName ? String(item.post.author.displayName) : undefined,
+            avatar: item.post.author.avatar ? String(item.post.author.avatar) : undefined
+          },
+          record: {
+            text: String(item.post.record.text || ''),
+            createdAt: String(item.post.record.createdAt)
+          },
+          embed: item.post.embed?.images ? {
+            images: item.post.embed.images.map((img: any) => ({
+              alt: String(img.alt || ''),
+              image: { ref: String(img.image.ref) }
+            }))
+          } : undefined,
+          replyCount: Number(item.post.replyCount) || 0,
+          repostCount: Number(item.post.repostCount) || 0,
+          likeCount: Number(item.post.likeCount) || 0
+        }))
+      } catch (timelineError) {
+        console.warn('Timeline API failed, trying author feed fallback:', timelineError)
+        
+        // Fallback: Get user's own posts
+        const authorFeed = await this.agent.getAuthorFeed({
+          actor: this.session.handle,
+          limit: 20
+        })
+        
+        console.log('Author feed response:', authorFeed)
+        
+        return authorFeed.data.feed.map((item: any) => ({
+          uri: String(item.post.uri),
+          cid: String(item.post.cid),
+          author: {
+            did: String(item.post.author.did),
+            handle: String(item.post.author.handle),
+            displayName: item.post.author.displayName ? String(item.post.author.displayName) : undefined,
+            avatar: item.post.author.avatar ? String(item.post.author.avatar) : undefined
+          },
+          record: {
+            text: String(item.post.record.text || ''),
+            createdAt: String(item.post.record.createdAt)
+          },
+          embed: (() => {
+            try {
+              if (item.post.embed?.images && Array.isArray(item.post.embed.images)) {
+                const validImages = item.post.embed.images.map((img: any) => {
+                  // Handle different image embed structures
+                  const imageRef = img.image?.ref || img.ref || img.cid || ''
+                  if (!imageRef) return null
+                  
+                  return {
+                    alt: String(img.alt || ''),
+                    image: { ref: String(imageRef) }
+                  }
+                }).filter(Boolean) // Remove null entries
+                
+                return validImages.length > 0 ? { images: validImages } : undefined
+              }
+              return undefined
+            } catch (err) {
+              console.warn('Error processing embed images:', err)
+              return undefined
+            }
+          })(),
+          replyCount: Number(item.post.replyCount) || 0,
+          repostCount: Number(item.post.repostCount) || 0,
+          likeCount: Number(item.post.likeCount) || 0
+        }))
+      }
+    } catch (error: any) {
+      console.error('All timeline fetch methods failed:', error)
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        response: error.response
+      })
+      throw new Error(`Timeline error: ${error.message || 'Unknown error'}`)
     }
   }
 
@@ -354,76 +428,85 @@ function TimelinePost({ post }: { post: Post }) {
   }
 
   return (
-    <div className="border-b border-gray-700 p-4 hover:bg-gray-800/30 transition-all duration-300">
+    <div className="border-b border-gray-700 p-3 hover:bg-gray-800/30 transition-all duration-300">
       <div className="flex space-x-3">
-        <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
+        <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
           {post.author.avatar && !imageError ? (
             <img 
               src={String(post.author.avatar)} 
               alt={String(post.author.handle)}
-              className="w-10 h-10 rounded-full object-cover"
+              className="w-8 h-8 rounded-full object-cover"
               onError={() => setImageError(true)}
             />
           ) : (
-            <User className="w-5 h-5 text-gray-400" />
+            <User className="w-4 h-4 text-gray-400" />
           )}
         </div>
         
         <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-2 text-sm">
-            <span className="font-semibold text-white">
+          <div className="flex items-center space-x-2 text-xs">
+            <span className="font-semibold text-white truncate">
               {String(post.author.displayName || post.author.handle)}
             </span>
-            <span className="text-gray-400">@{String(post.author.handle)}</span>
+            <span className="text-gray-400 truncate">@{String(post.author.handle)}</span>
             <span className="text-gray-500">·</span>
             <span className="text-gray-500">{formatTime(post.record.createdAt)}</span>
           </div>
           
-          <div className="mt-1 text-white whitespace-pre-wrap text-sm leading-relaxed">
+          <div className="mt-1 text-white text-sm leading-relaxed">
             {String(post.record.text)}
           </div>
 
           {post.embed?.images && post.embed.images.length > 0 && (
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {post.embed.images.slice(0, 4).map((img, index) => (
-                <div 
-                  key={index}
-                  className="relative aspect-square rounded-lg overflow-hidden bg-gray-700"
-                >
-                  <img
-                    src={`https://cdn.bsky.app/img/feed_thumbnail/plain/${post.author.did}/${img.image.ref}@jpeg`}
-                    alt={img.alt || 'Image'}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                  />
-                </div>
-              ))}
+            <div className="mt-2 grid grid-cols-2 gap-1">
+              {post.embed.images.slice(0, 4).map((img, index) => {
+                const imageUrl = img.image.ref 
+                  ? `https://cdn.bsky.app/img/feed_thumbnail/plain/${post.author.did}/${img.image.ref}@jpeg`
+                  : null
+                
+                return imageUrl ? (
+                  <div 
+                    key={index}
+                    className="relative w-full h-20 rounded overflow-hidden bg-gray-700"
+                  >
+                    <img
+                      src={imageUrl}
+                      alt={img.alt || 'Image'}
+                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                      }}
+                    />
+                  </div>
+                ) : null
+              }).filter(Boolean)}
             </div>
           )}
           
-          <div className="flex items-center space-x-6 mt-3 text-gray-400">
-            <button className="flex items-center space-x-1 hover:text-blue-400 transition-all duration-300 transform hover:scale-105">
-              <MessageCircle className="w-4 h-4" />
-              <span className="text-sm">{String(post.replyCount || 0)}</span>
+          <div className="flex items-center space-x-4 mt-2 text-gray-400">
+            <button className="flex items-center space-x-1 hover:text-blue-400 transition-all duration-300 text-xs">
+              <MessageCircle className="w-3 h-3" />
+              <span>{String(post.replyCount || 0)}</span>
             </button>
             
-            <button className="flex items-center space-x-1 hover:text-green-400 transition-all duration-300 transform hover:scale-105">
-              <Repeat2 className="w-4 h-4" />
-              <span className="text-sm">{String(post.repostCount || 0)}</span>
+            <button className="flex items-center space-x-1 hover:text-green-400 transition-all duration-300 text-xs">
+              <Repeat2 className="w-3 h-3" />
+              <span>{String(post.repostCount || 0)}</span>
             </button>
             
-            <button className="flex items-center space-x-1 hover:text-red-400 transition-all duration-300 transform hover:scale-105">
-              <Heart className="w-4 h-4" />
-              <span className="text-sm">{String(post.likeCount || 0)}</span>
+            <button className="flex items-center space-x-1 hover:text-red-400 transition-all duration-300 text-xs">
+              <Heart className="w-3 h-3" />
+              <span>{String(post.likeCount || 0)}</span>
             </button>
             
-            <button className="hover:text-gray-300 transition-all duration-300 transform hover:scale-105">
-              <Share className="w-4 h-4" />
+            <button className="hover:text-gray-300 transition-all duration-300">
+              <Share className="w-3 h-3" />
             </button>
           </div>
         </div>
         
-        <button className="p-1 hover:bg-gray-700 rounded-full transition-all duration-200">
-          <MoreHorizontal className="w-4 h-4 text-gray-400" />
+        <button className="p-1 hover:bg-gray-700 rounded-full transition-all duration-200 flex-shrink-0">
+          <MoreHorizontal className="w-3 h-3 text-gray-400" />
         </button>
       </div>
     </div>
@@ -444,11 +527,13 @@ function Timeline() {
     try {
       setLoading(true)
       setError('')
+      console.log('Loading timeline...')
       const timelinePosts = await atprotoAuth.getTimeline()
+      console.log('Timeline loaded successfully, posts:', timelinePosts.length)
       setPosts(timelinePosts)
-    } catch (err) {
-      setError('Failed to load timeline')
-      console.error('Timeline error:', err)
+    } catch (err: any) {
+      console.error('Timeline loading failed:', err)
+      setError(`Failed to load timeline: ${err.message}`)
     } finally {
       setLoading(false)
     }
@@ -663,7 +748,7 @@ export default function Dashboard() {
 
         <main className="flex-1">
           {currentView === 'timeline' && (
-            <div className="max-w-sm mx-auto border-x border-gray-700 min-h-screen">
+            <div className="w-80 mx-auto border-x border-gray-700 min-h-screen">
               <div className="sticky top-0 bg-gray-900/90 backdrop-blur-md border-b border-gray-700 p-4">
                 <h2 className="text-xl font-bold">Home Timeline</h2>
               </div>
