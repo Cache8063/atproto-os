@@ -19,6 +19,7 @@ import {
   Reply
 } from 'lucide-react';
 import { useAuth } from '@/contexts/hybrid-auth-context';
+import VersionFooter from '@/components/version-footer';
 
 interface SystemMetrics {
   cpu: {
@@ -114,15 +115,33 @@ const Widget = ({ title, icon: Icon, children, className = "" }: {
 };
 
 const TimelineWidget = () => {
-  const { isAuthenticated, session } = useAuth();
+  const { isAuthenticated, session, service } = useAuth();
   const [timeline, setTimeline] = useState<TimelineData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [newPost, setNewPost] = useState('')
   const [posting, setPosting] = useState(false)
 
+  const getAuthHeaders = () => {
+    if (!session || !service) return {}
+    
+    console.log('Timeline Widget: Creating auth headers for service:', service)
+    
+    return {
+      'Authorization': `Bearer ${session.accessJwt}`,
+      'X-AT-Session': JSON.stringify({
+        handle: session.handle,
+        did: session.did,
+        accessJwt: session.accessJwt,
+        refreshJwt: session.refreshJwt
+      }),
+      'X-AT-Service': service
+    }
+  }
+
   const fetchTimeline = async () => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !session || !service) {
+      console.log('Timeline Widget: Not authenticated or missing session/service')
       setError('Not authenticated')
       setLoading(false)
       return
@@ -130,7 +149,19 @@ const TimelineWidget = () => {
 
     try {
       setError(null)
-      const response = await fetch('/api/atproto/timeline?limit=6')
+      console.log('Timeline Widget: Fetching timeline for service:', service)
+      
+      const headers = getAuthHeaders()
+      console.log('Timeline Widget: Request headers:', Object.keys(headers))
+      
+      const response = await fetch('/api/atproto/timeline?limit=6', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers
+        }
+      })
+      
+      console.log('Timeline Widget: Response status:', response.status)
       
       if (response.status === 401) {
         setError('Not authenticated')
@@ -143,6 +174,7 @@ const TimelineWidget = () => {
       }
       
       const data = await response.json()
+      console.log('Timeline Widget: Successfully loaded timeline with', data.posts?.length, 'posts')
       setTimeline(data)
     } catch (error: any) {
       console.error('Timeline fetch error:', error)
@@ -154,14 +186,17 @@ const TimelineWidget = () => {
 
   const handlePost = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newPost.trim() || posting || !isAuthenticated) return
+    if (!newPost.trim() || posting || !isAuthenticated || !session || !service) return
 
     setPosting(true)
     try {
+      console.log('Timeline Widget: Creating post for service:', service)
+      
       const response = await fetch('/api/atproto/timeline', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
         },
         body: JSON.stringify({ text: newPost.trim() })
       })
@@ -172,6 +207,7 @@ const TimelineWidget = () => {
       }
 
       setNewPost('')
+      console.log('Timeline Widget: Post created successfully')
       await fetchTimeline()
     } catch (error: any) {
       console.error('Post error:', error)
@@ -197,31 +233,38 @@ const TimelineWidget = () => {
   }
 
   useEffect(() => {
-    if (isAuthenticated) {
+    console.log('Timeline Widget: Auth state changed:', {
+      isAuthenticated,
+      hasSession: !!session,
+      service,
+      handle: session?.handle
+    })
+    
+    if (isAuthenticated && session && service) {
       fetchTimeline()
     } else {
       setTimeline(null)
       setError('Not authenticated')
       setLoading(false)
     }
-  }, [isAuthenticated])
+  }, [isAuthenticated, session, service])
 
   useEffect(() => {
-    if (!isAuthenticated) return
+    if (!isAuthenticated || !session || !service) return
     
     const interval = setInterval(() => {
-      if (isAuthenticated) {
+      if (isAuthenticated && session && service) {
         fetchTimeline()
       }
     }, 60000)
     
     return () => clearInterval(interval)
-  }, [isAuthenticated])
+  }, [isAuthenticated, session, service])
 
   return (
     <Widget title="Timeline" icon={MessageSquare}>
       <div className="space-y-3 h-72 overflow-hidden flex flex-col">
-        {isAuthenticated && (
+        {isAuthenticated && session && service && (
           <form onSubmit={handlePost} className="flex-shrink-0">
             <div className="flex space-x-2">
               <input
@@ -256,7 +299,7 @@ const TimelineWidget = () => {
           ) : error ? (
             <div className="text-center p-3">
               <div className="text-red-400 text-xs mb-2">{error}</div>
-              {isAuthenticated && (
+              {isAuthenticated && session && service && (
                 <button 
                   onClick={fetchTimeline}
                   className="text-blue-400 hover:text-blue-300 text-xs flex items-center space-x-1 mx-auto"
@@ -338,7 +381,7 @@ const TimelineWidget = () => {
         <div className="flex-shrink-0 pt-2 border-t border-gray-700/30">
           <button
             onClick={fetchTimeline}
-            disabled={loading || !isAuthenticated}
+            disabled={loading || !isAuthenticated || !session || !service}
             className="w-full px-2 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 rounded text-xs flex items-center justify-center space-x-1"
           >
             <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
@@ -504,7 +547,7 @@ const FullDashboard = () => {
           )}
         </AnimatePresence>
 
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 pb-16">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
             <div className="lg:col-span-1">
@@ -631,6 +674,9 @@ const FullDashboard = () => {
           </div>
         </main>
       </div>
+
+      {/* Version Footer */}
+      <VersionFooter />
     </div>
   );
 };

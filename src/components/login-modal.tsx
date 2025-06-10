@@ -26,9 +26,10 @@ export default function LoginModal({ onClose, onLogin, loading = false }: LoginM
 
     try {
       await onLogin({ identifier, password })
-      onClose()
-    } catch (error) {
-      setError('Invalid credentials or connection error')
+      // Modal will close via onLogin success
+    } catch (error: any) {
+      console.error('Login error:', error)
+      setError(error.message || 'Invalid credentials or connection error')
     }
   }
 

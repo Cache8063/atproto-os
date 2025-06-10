@@ -157,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null)
   const [loading, setLoading] = useState(false)
   const [service, setService] = useState<string | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   const login = async (credentials: AuthCredentials) => {
     setLoading(true)
@@ -165,6 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (result.success && result.session) {
         setSession(result.session)
         setService(result.service || null)
+        setIsAuthenticated(true)
       } else {
         throw new Error('Login failed')
       }
@@ -182,6 +184,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await hybridATProtoAuth.logout()
       setSession(null)
       setService(null)
+      setIsAuthenticated(false)
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
@@ -192,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextType = {
     session,
     loading,
-    isAuthenticated: hybridATProtoAuth.isAuthenticated(),
+    isAuthenticated,
     service,
     login,
     logout

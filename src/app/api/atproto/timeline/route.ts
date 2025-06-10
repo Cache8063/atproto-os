@@ -1,28 +1,63 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { hybridATProtoAuth } from '@/lib/hybrid-atproto-auth'
+import { BskyAgent } from '@atproto/api'
 
 export async function GET(request: NextRequest) {
   try {
-    // Check if user is authenticated
-    if (!hybridATProtoAuth.isAuthenticated()) {
+    // Get auth info from headers
+    const authHeader = request.headers.get('authorization')
+    const sessionHeader = request.headers.get('x-at-session')
+    const serviceHeader = request.headers.get('x-at-service')
+    
+    console.log('Timeline API: Received headers:', {
+      hasAuth: !!authHeader,
+      hasSession: !!sessionHeader,
+      service: serviceHeader
+    })
+    
+    if (!authHeader || !sessionHeader || !serviceHeader) {
+      console.log('Timeline API: Missing required headers')
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
       )
     }
 
-    const agent = hybridATProtoAuth.getAgent()
-    if (!agent) {
+    // Parse session data
+    let sessionData
+    try {
+      sessionData = JSON.parse(sessionHeader)
+      console.log('Timeline API: Session data for handle:', sessionData.handle)
+    } catch (error) {
+      console.log('Timeline API: Invalid session header')
       return NextResponse.json(
-        { error: 'No agent available' },
-        { status: 500 }
+        { error: 'Invalid session data' },
+        { status: 401 }
       )
     }
+
+    console.log('Timeline API: Creating agent for service:', serviceHeader)
+    
+    // Create agent with the correct service
+    const agent = new BskyAgent({ 
+      service: serviceHeader
+    })
+    
+    await agent.resumeSession({
+      accessJwt: sessionData.accessJwt,
+      refreshJwt: sessionData.refreshJwt,
+      handle: sessionData.handle,
+      did: sessionData.did,
+      active: true
+    })
+
+    console.log('Timeline API: Session resumed successfully')
 
     // Get query parameters
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
     const cursor = searchParams.get('cursor') || undefined
+
+    console.log(`Timeline API: Fetching timeline with limit=${limit}`)
 
     // Fetch timeline using the authenticated agent
     const timelineResponse = await agent.getTimeline({
@@ -33,6 +68,8 @@ export async function GET(request: NextRequest) {
     if (!timelineResponse.success) {
       throw new Error('Failed to fetch timeline')
     }
+
+    console.log(`Timeline API: Successfully fetched ${timelineResponse.data.feed.length} posts`)
 
     // Process the timeline data
     const posts = timelineResponse.data.feed.map(item => {
@@ -71,26 +108,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       posts,
       cursor: timelineResponse.data.cursor || null,
-      service: hybridATProtoAuth.getCurrentService(),
+      service: serviceHeader,
       timestamp: new Date().toISOString()
     })
 
   } catch (error: any) {
     console.error('Timeline API error:', error)
     
-    // Try to refresh session once if authentication failed
-    if (error.message?.includes('auth') || error.message?.includes('token')) {
-      try {
-        const refreshed = await hybridATProtoAuth.refreshSession()
-        if (refreshed) {
-          // Retry the request once after refresh
-          return GET(request)
-        }
-      } catch (refreshError) {
-        console.error('Session refresh failed:', refreshError)
-      }
-    }
-
     return NextResponse.json(
       { 
         error: 'Failed to fetch timeline',
@@ -103,21 +127,47 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Check if user is authenticated
-    if (!hybridATProtoAuth.isAuthenticated()) {
+    // Get auth info from headers
+    const authHeader = request.headers.get('authorization')
+    const sessionHeader = request.headers.get('x-at-session')
+    const serviceHeader = request.headers.get('x-at-service')
+    
+    console.log('Timeline POST: Received headers for service:', serviceHeader)
+    
+    if (!authHeader || !sessionHeader || !serviceHeader) {
+      console.log('Timeline POST: Missing required headers')
       return NextResponse.json(
         { error: 'Not authenticated' },
         { status: 401 }
       )
     }
 
-    const agent = hybridATProtoAuth.getAgent()
-    if (!agent) {
+    // Parse session data
+    let sessionData
+    try {
+      sessionData = JSON.parse(sessionHeader)
+    } catch (error) {
+      console.log('Timeline POST: Invalid session header')
       return NextResponse.json(
-        { error: 'No agent available' },
-        { status: 500 }
+        { error: 'Invalid session data' },
+        { status: 401 }
       )
     }
+
+    console.log('Timeline POST: Creating agent for service:', serviceHeader)
+    
+    // Create agent with the correct service
+    const agent = new BskyAgent({ 
+      service: serviceHeader
+    })
+    
+    await agent.resumeSession({
+      accessJwt: sessionData.accessJwt,
+      refreshJwt: sessionData.refreshJwt,
+      handle: sessionData.handle,
+      did: sessionData.did,
+      active: true
+    })
 
     const body = await request.json()
     const { text } = body
@@ -129,11 +179,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    console.log(`Timeline POST: Creating post with text length=${text.length}`)
+
     // Post to the timeline
     const postResponse = await agent.post({
       text: text.trim(),
       createdAt: new Date().toISOString()
     })
+
+    console.log('Timeline POST: Post created successfully')
 
     return NextResponse.json({
       success: true,
@@ -143,7 +197,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error: any) {
-    console.error('Post creation error:', error)
+    console.error('Timeline POST error:', error)
     return NextResponse.json(
       { 
         error: 'Failed to create post',
