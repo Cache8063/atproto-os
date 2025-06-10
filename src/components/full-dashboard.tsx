@@ -1,50 +1,5 @@
 'use client'
-import React, { useState, useEffect }
-
-const TerminalWidget = () => {
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  
-  if (isFullscreen) {
-    return (
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        className="fixed inset-4 bg-gray-900 border border-gray-700 z-50 p-6"
-      >
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-white">Terminal</h2>
-          <button
-            onClick={() => setIsFullscreen(false)}
-            className="p-2 hover:bg-gray-700 rounded"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="bg-black rounded p-4 h-full font-mono text-green-400 text-sm">
-          <div>user@atproto-dashboard:~$ ps aux | grep pds</div>
-          <div className="text-gray-400">pds    1234  0.1  2.3  /usr/bin/pds</div>
-          <div>user@atproto-dashboard:~$ <span className="animate-pulse">|</span></div>
-        </div>
-      </motion.div>
-    );
-  }
-
-  return (
-    <Widget title="Terminal" icon={Terminal}>
-      <div className="bg-black rounded p-3 font-mono text-green-400 text-sm h-24">
-        <div>$ tail -f /var/log/pds.log</div>
-        <div className="text-gray-400 text-xs">INFO: Federation sync completed</div>
-        <div>$ <span className="animate-pulse">|</span></div>
-      </div>
-      <button
-        onClick={() => setIsFullscreen(true)}
-        className="mt-3 px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-sm"
-      >
-        Launch Terminal
-      </button>
-    </Widget>
-  );
-}; from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Terminal, 
@@ -135,6 +90,27 @@ interface TimelineData {
   service: string
   timestamp: string
 }
+
+const Widget = ({ title, icon: Icon, children, className = "" }: { 
+  title: string; 
+  icon: any; 
+  children: React.ReactNode; 
+  className?: string 
+}) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/30 p-6 ${className}`}
+    >
+      <div className="flex items-center space-x-3 mb-4">
+        <Icon className="w-5 h-5 text-blue-400" />
+        <h3 className="text-lg font-semibold text-white">{title}</h3>
+      </div>
+      {children}
+    </motion.div>
+  );
+};
 
 const TimelineWidget = () => {
   const [timeline, setTimeline] = useState<TimelineData | null>(null)
@@ -352,27 +328,6 @@ const TimelineWidget = () => {
   )
 }
 
-const Widget = ({ title, icon: Icon, children, className = "" }: { 
-  title: string; 
-  icon: any; 
-  children: React.ReactNode; 
-  className?: string 
-}) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`bg-gray-800/50 backdrop-blur-sm rounded-xl border border-gray-700/30 p-6 ${className}`}
-    >
-      <div className="flex items-center space-x-3 mb-4">
-        <Icon className="w-5 h-5 text-blue-400" />
-        <h3 className="text-lg font-semibold text-white">{title}</h3>
-      </div>
-      {children}
-    </motion.div>
-  );
-};
-
 const TerminalWidget = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   
@@ -436,7 +391,7 @@ const FullDashboard = () => {
       const data = await response.json();
       setSystemMetrics(data);
       setMetricsError(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching system metrics:', error);
       setMetricsError('Failed to load system metrics');
     } finally {
