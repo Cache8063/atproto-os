@@ -1,3 +1,5 @@
+'use client'
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { BskyAgent } from '@atproto/api'
 
 export interface AuthSession {
@@ -105,7 +107,7 @@ class HybridATProtoAuth {
     return this.currentService
   }
 
-  // NEW: Get authenticated agent for making API calls
+  // Get authenticated agent for making API calls
   getAgent(): BskyAgent | null {
     return this.agent
   }
@@ -121,7 +123,7 @@ class HybridATProtoAuth {
     }
   }
 
-  // NEW: Refresh session if needed
+  // Refresh session if needed
   async refreshSession(): Promise<boolean> {
     if (!this.agent || !this.session) {
       return false
@@ -138,3 +140,75 @@ class HybridATProtoAuth {
 }
 
 export const hybridATProtoAuth = new HybridATProtoAuth()
+
+// React Context Implementation
+interface AuthContextType {
+  session: AuthSession | null
+  loading: boolean
+  isAuthenticated: boolean
+  service: string | null
+  login: (credentials: AuthCredentials) => Promise<void>
+  logout: () => Promise<void>
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<AuthSession | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [service, setService] = useState<string | null>(null)
+
+  const login = async (credentials: AuthCredentials) => {
+    setLoading(true)
+    try {
+      const result = await hybridATProtoAuth.login(credentials)
+      if (result.success && result.session) {
+        setSession(result.session)
+        setService(result.service || null)
+      } else {
+        throw new Error('Login failed')
+      }
+    } catch (error) {
+      console.error('Login error:', error)
+      throw error
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const logout = async () => {
+    setLoading(true)
+    try {
+      await hybridATProtoAuth.logout()
+      setSession(null)
+      setService(null)
+    } catch (error) {
+      console.error('Logout error:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const value: AuthContextType = {
+    session,
+    loading,
+    isAuthenticated: hybridATProtoAuth.isAuthenticated(),
+    service,
+    login,
+    logout
+  }
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
+}

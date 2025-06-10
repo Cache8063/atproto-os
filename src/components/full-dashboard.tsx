@@ -18,6 +18,7 @@ import {
   Repeat,
   Reply
 } from 'lucide-react';
+import { useAuth } from '@/contexts/hybrid-auth-context';
 
 interface SystemMetrics {
   cpu: {
@@ -113,6 +114,7 @@ const Widget = ({ title, icon: Icon, children, className = "" }: {
 };
 
 const TimelineWidget = () => {
+  const { isAuthenticated, session } = useAuth();
   const [timeline, setTimeline] = useState<TimelineData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -120,6 +122,12 @@ const TimelineWidget = () => {
   const [posting, setPosting] = useState(false)
 
   const fetchTimeline = async () => {
+    if (!isAuthenticated) {
+      setError('Not authenticated')
+      setLoading(false)
+      return
+    }
+
     try {
       setError(null)
       const response = await fetch('/api/atproto/timeline?limit=6')
@@ -146,7 +154,7 @@ const TimelineWidget = () => {
 
   const handlePost = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newPost.trim() || posting) return
+    if (!newPost.trim() || posting || !isAuthenticated) return
 
     setPosting(true)
     try {
@@ -164,7 +172,6 @@ const TimelineWidget = () => {
       }
 
       setNewPost('')
-      // Refresh timeline after posting
       await fetchTimeline()
     } catch (error: any) {
       console.error('Post error:', error)
@@ -190,43 +197,57 @@ const TimelineWidget = () => {
   }
 
   useEffect(() => {
-    fetchTimeline()
+    if (isAuthenticated) {
+      fetchTimeline()
+    } else {
+      setTimeline(null)
+      setError('Not authenticated')
+      setLoading(false)
+    }
+  }, [isAuthenticated])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
     
-    // Auto-refresh every 60 seconds
-    const interval = setInterval(fetchTimeline, 60000)
+    const interval = setInterval(() => {
+      if (isAuthenticated) {
+        fetchTimeline()
+      }
+    }, 60000)
+    
     return () => clearInterval(interval)
-  }, [])
+  }, [isAuthenticated])
 
   return (
     <Widget title="Timeline" icon={MessageSquare}>
       <div className="space-y-3 h-72 overflow-hidden flex flex-col">
-        {/* Compact Post Composer */}
-        <form onSubmit={handlePost} className="flex-shrink-0">
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={newPost}
-              onChange={(e) => setNewPost(e.target.value)}
-              placeholder="What's happening?"
-              className="flex-1 px-2 py-1.5 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-              maxLength={300}
-              disabled={posting}
-            />
-            <button
-              type="submit"
-              disabled={!newPost.trim() || posting}
-              className="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded flex items-center"
-            >
-              {posting ? (
-                <div className="w-3 h-3 border border-white/20 border-t-white rounded-full animate-spin" />
-              ) : (
-                <Send className="w-3 h-3" />
-              )}
-            </button>
-          </div>
-        </form>
+        {isAuthenticated && (
+          <form onSubmit={handlePost} className="flex-shrink-0">
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={newPost}
+                onChange={(e) => setNewPost(e.target.value)}
+                placeholder="What's happening?"
+                className="flex-1 px-2 py-1.5 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                maxLength={300}
+                disabled={posting}
+              />
+              <button
+                type="submit"
+                disabled={!newPost.trim() || posting}
+                className="px-2 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded flex items-center"
+              >
+                {posting ? (
+                  <div className="w-3 h-3 border border-white/20 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <Send className="w-3 h-3" />
+                )}
+              </button>
+            </div>
+          </form>
+        )}
 
-        {/* Compact Timeline Content */}
         <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-gray-600">
           {loading ? (
             <div className="flex items-center justify-center h-24">
@@ -235,13 +256,15 @@ const TimelineWidget = () => {
           ) : error ? (
             <div className="text-center p-3">
               <div className="text-red-400 text-xs mb-2">{error}</div>
-              <button 
-                onClick={fetchTimeline}
-                className="text-blue-400 hover:text-blue-300 text-xs flex items-center space-x-1 mx-auto"
-              >
-                <RefreshCw className="w-3 h-3" />
-                <span>Retry</span>
-              </button>
+              {isAuthenticated && (
+                <button 
+                  onClick={fetchTimeline}
+                  className="text-blue-400 hover:text-blue-300 text-xs flex items-center space-x-1 mx-auto"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Retry</span>
+                </button>
+              )}
             </div>
           ) : timeline?.posts.length === 0 ? (
             <div className="text-center text-gray-400 p-3 text-xs">
@@ -312,11 +335,10 @@ const TimelineWidget = () => {
           )}
         </div>
 
-        {/* Compact Refresh Button */}
         <div className="flex-shrink-0 pt-2 border-t border-gray-700/30">
           <button
             onClick={fetchTimeline}
-            disabled={loading}
+            disabled={loading || !isAuthenticated}
             className="w-full px-2 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 rounded text-xs flex items-center justify-center space-x-1"
           >
             <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
@@ -381,7 +403,6 @@ const FullDashboard = () => {
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [metricsError, setMetricsError] = useState<string | null>(null);
 
-  // Fetch system metrics
   const fetchSystemMetrics = async () => {
     try {
       const response = await fetch('/api/metrics');
@@ -403,15 +424,11 @@ const FullDashboard = () => {
     setMounted(true);
     setCurrentTime(new Date().toLocaleTimeString());
     
-    // Update time every second
     const timeTimer = setInterval(() => {
       setCurrentTime(new Date().toLocaleTimeString());
     }, 1000);
 
-    // Fetch metrics initially
     fetchSystemMetrics();
-    
-    // Update metrics every 5 seconds
     const metricsTimer = setInterval(fetchSystemMetrics, 5000);
 
     return () => {
@@ -420,7 +437,6 @@ const FullDashboard = () => {
     };
   }, []);
 
-  // Calculate active users (mock for now - could be real AT Protocol data later)
   const activeUsers = systemMetrics ? Math.floor(systemMetrics.memory.percentage * 2.3) : 0;
 
   return (
@@ -489,20 +505,16 @@ const FullDashboard = () => {
         </AnimatePresence>
 
         <main className="flex-1 p-6">
-          {/* Updated Grid Layout - 3 columns for better proportions */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             
-            {/* Terminal Widget - spans 1 column */}
             <div className="lg:col-span-1">
               <TerminalWidget />
             </div>
             
-            {/* Timeline Widget - spans 1 column, proportionate to other widgets */}
             <div className="lg:col-span-1">
               <TimelineWidget />
             </div>
 
-            {/* System Metrics Widget - spans 1 column */}
             <div className="lg:col-span-1">
               <Widget title="System Metrics" icon={Activity}>
                 {metricsLoading ? (
@@ -561,7 +573,6 @@ const FullDashboard = () => {
               </Widget>
             </div>
 
-            {/* Alerts Widget - spans 2 columns */}
             <div className="md:col-span-2 lg:col-span-2">
               <Widget title="Alerts" icon={AlertTriangle}>
                 <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -599,7 +610,6 @@ const FullDashboard = () => {
               </Widget>
             </div>
 
-            {/* AT Protocol Stats Widget - spans 1 column */}
             <div className="lg:col-span-1">
               <Widget title="AT Protocol Stats" icon={Users}>
                 <div className="space-y-3">
