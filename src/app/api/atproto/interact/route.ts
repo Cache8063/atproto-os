@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json()
-    const { action, postUri, text } = body
+    const { action, postUri, postCid, text } = body
 
     if (!action || !postUri) {
       return NextResponse.json(
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    console.log(`Interaction API: ${action} on post ${postUri}`)
+    console.log(`Interaction API: ${action} on post ${postUri} with CID ${postCid}`)
 
     // Create agent with the correct service
     const agent = new BskyAgent({ 
@@ -58,12 +58,26 @@ export async function POST(request: NextRequest) {
     
     switch (action) {
       case 'like':
-        result = await agent.like(postUri, sessionData.did)
+        if (!postCid) {
+          return NextResponse.json(
+            { error: 'postCid required for like' },
+            { status: 400 }
+          )
+        }
+        
+        result = await agent.like(postUri, postCid)
         console.log(`Interaction API: Like successful:`, result.uri)
         break
         
       case 'repost':
-        result = await agent.repost(postUri, sessionData.did)
+        if (!postCid) {
+          return NextResponse.json(
+            { error: 'postCid required for repost' },
+            { status: 400 }
+          )
+        }
+        
+        result = await agent.repost(postUri, postCid)
         console.log(`Interaction API: Repost successful:`, result.uri)
         break
         
@@ -75,12 +89,19 @@ export async function POST(request: NextRequest) {
           )
         }
         
+        if (!postCid) {
+          return NextResponse.json(
+            { error: 'postCid required for reply' },
+            { status: 400 }
+          )
+        }
+        
         // For replies, we need to create a post with a reply reference
         result = await agent.post({
           text: text,
           reply: {
-            root: { uri: postUri, cid: body.postCid || '' },
-            parent: { uri: postUri, cid: body.postCid || '' }
+            root: { uri: postUri, cid: postCid },
+            parent: { uri: postUri, cid: postCid }
           },
           createdAt: new Date().toISOString()
         })
@@ -106,7 +127,7 @@ export async function POST(request: NextRequest) {
     console.error(`Interaction API error:`, error)
     
     // Handle specific AT Protocol errors
-    if (error.message?.includes('already exists')) {
+    if (error.message?.includes('already exists') || error.message?.includes('DuplicateCreate')) {
       return NextResponse.json({
         success: true,
         message: 'Already performed this action',

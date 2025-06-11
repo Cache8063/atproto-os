@@ -218,12 +218,12 @@ const TimelineWidget = () => {
     }
   }
 
-  const handleInteraction = async (action: 'like' | 'repost' | 'reply', postUri: string) => {
+  const handleInteraction = async (action: 'like' | 'repost' | 'reply', post: TimelinePost) => {
     if (!isAuthenticated || !session || !service || interactionLoading) return
 
-    setInteractionLoading(postUri)
+    setInteractionLoading(post.uri)
     try {
-      console.log(`Timeline Widget: ${action} on post:`, postUri)
+      console.log(`Timeline Widget: ${action} on post:`, post.uri, 'cid:', post.cid)
       
       const response = await fetch('/api/atproto/interact', {
         method: 'POST',
@@ -233,7 +233,8 @@ const TimelineWidget = () => {
         },
         body: JSON.stringify({ 
           action, 
-          postUri,
+          postUri: post.uri,
+          postCid: post.cid, // Include the CID!
           // For reply, we'd need to implement a reply modal
           text: action === 'reply' ? 'Quick reply!' : undefined
         })
@@ -368,12 +369,12 @@ const TimelineWidget = () => {
                       <img
                         src={post.author.avatar}
                         alt={post.author.displayName}
-                        className="w-5 h-5 rounded-full object-cover bg-gray-600"
+                        className="w-6 h-6 rounded-full object-cover bg-gray-600"
                         style={{ 
-                          minWidth: '20px',
-                          minHeight: '20px',
-                          maxWidth: '20px', 
-                          maxHeight: '20px'
+                          minWidth: '24px',
+                          minHeight: '24px',
+                          maxWidth: '24px', 
+                          maxHeight: '24px'
                         }}
                         onError={(e) => {
                           // Hide broken images and show fallback
@@ -381,7 +382,7 @@ const TimelineWidget = () => {
                         }}
                       />
                     ) : (
-                      <div className="w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <div className="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
                         <span className="text-xs text-white font-medium">
                           {post.author.displayName[0]?.toUpperCase()}
                         </span>
@@ -408,7 +409,7 @@ const TimelineWidget = () => {
                     
                     <div className="flex items-center space-x-4 mt-1.5 text-xs text-gray-400">
                       <button
-                        onClick={() => handleInteraction('reply', post.uri)}
+                        onClick={() => handleInteraction('reply', post)}
                         disabled={!!interactionLoading}
                         className="flex items-center space-x-0.5 hover:text-blue-400 transition-colors disabled:opacity-50"
                       >
@@ -421,7 +422,7 @@ const TimelineWidget = () => {
                       </button>
                       
                       <button
-                        onClick={() => handleInteraction('repost', post.uri)}
+                        onClick={() => handleInteraction('repost', post)}
                         disabled={!!interactionLoading}
                         className="flex items-center space-x-0.5 hover:text-green-400 transition-colors disabled:opacity-50"
                       >
@@ -434,7 +435,7 @@ const TimelineWidget = () => {
                       </button>
                       
                       <button
-                        onClick={() => handleInteraction('like', post.uri)}
+                        onClick={() => handleInteraction('like', post)}
                         disabled={!!interactionLoading}
                         className="flex items-center space-x-0.5 hover:text-red-400 transition-colors disabled:opacity-50"
                       >
