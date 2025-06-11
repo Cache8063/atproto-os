@@ -1,0 +1,35 @@
+appId: xyz.blueskyweb.app
+---
+- runScript:
+    file: ../setupServer.js
+    env:
+        SERVER_PATH: ""
+- runFlow:
+    file: ../setupApp.yml
+- tapOn:
+    id: "e2eOpenLoggedOutView"
+- tapOn:
+    id: "createAccountButton"
+- tapOn: "Bluesky Social"
+- tapOn:
+    id: "customSelectBtn"
+- tapOn:
+    id: "customServerTextInput"
+- inputText: "http://localhost:3000"
+- pressKey: Enter
+- tapOn:
+    id: "doneBtn"
+- tapOn:
+    id: "emailInput"
+- inputText: "example@test.com"
+- tapOn:
+    id: "passwordInput"
+- inputText: "hunter22"
+- hideKeyboard
+- tapOn:
+    id: "nextBtn"
+- tapOn: "Not now"
+- inputText: "e2e-test"
+- tapOn:
+    id: "nextBtn"
+

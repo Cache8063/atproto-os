@@ -149,16 +149,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<ThemeVariant>('deep-blue')
 
   useEffect(() => {
+    if (typeof window === 'undefined') return
+    
     const root = document.documentElement
     const themeConfig = themes[theme]
     
+    // Clear any existing theme variables first
+    const existingVars = Array.from(root.style).filter(prop => prop.startsWith('--'))
+    existingVars.forEach(prop => {
+      if (prop.includes('bg-') || prop.includes('text-') || prop.includes('border-') || prop.includes('interactive-') || prop.includes('status-')) {
+        root.style.removeProperty(prop)
+      }
+    })
+    
+    // Set new theme variables
     Object.entries(themeConfig.colors).forEach(([key, value]) => {
       root.style.setProperty(`--${key}`, value)
     })
     
-    if (typeof window !== 'undefined') {
-      sessionStorage.setItem('atproto_theme', theme)
-    }
+    sessionStorage.setItem('atproto_theme', theme)
   }, [theme])
 
   useEffect(() => {

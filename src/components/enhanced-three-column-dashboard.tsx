@@ -256,14 +256,14 @@ export default function EnhancedThreeColumnDashboard() {
         </div>
       </header>
 
-      {/* FIXED: Three Column Layout - Following UI team recommendations */}
+      {/* FIXED: Master Flexbox + Constrained Center Column Implementation */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Column 1: Left Sidebar - Navigation */}
-        <motion.div
+        {/* Left Sidebar */}
+        <motion.aside
           animate={{ width: sidebarCollapsed ? 80 : 280 }}
           transition={{ type: 'tween', duration: 0.3 }}
-          className="flex-shrink-0 border-r overflow-hidden bg-[var(--bg-secondary)]"
-          style={{ border: '2px solid red' }}
+          className="flex-shrink-0"
+          style={{ backgroundColor: 'var(--bg-secondary)' }}
         >
           <div className="p-4 h-full flex flex-col">
             <nav className="space-y-2 flex-1">
@@ -333,10 +333,10 @@ export default function EnhancedThreeColumnDashboard() {
               )}
             </AnimatePresence>
           </div>
-        </motion.div>
+        </motion.aside>
 
-        {/* Column 2: Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0 border-r overflow-hidden bg-[var(--bg-primary)]" style={{ border: '2px solid green' }}>
+        {/* Center Timeline - flex-1 flex flex-col min-w-0 overflow-hidden */}
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ backgroundColor: 'var(--bg-primary)' }}>
           <AnimatePresence mode="wait">
             <motion.div
               key={activeView || 'empty'}
@@ -349,20 +349,19 @@ export default function EnhancedThreeColumnDashboard() {
               {renderMainContent()}
             </motion.div>
           </AnimatePresence>
-        </div>
+        </main>
 
-        {/* Column 3: Right Sidebar - Threads/Conversations */}
-        {/* Following UI team recommendation: Add unique key and better conditional */}
+        {/* Right Threads Panel - AnimatePresence with unique key */}
         <AnimatePresence>
           {threads.length > 0 && (
-            <motion.div
+            <motion.aside
               key="thread-panel"
               initial={{ width: 0, opacity: 0 }}
               animate={{ width: 400, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ type: 'tween', duration: 0.3 }}
-              className="flex-shrink-0 border-l overflow-hidden bg-[var(--bg-secondary)]"
-              style={{ border: '2px solid blue' }}
+              className="flex-shrink-0 overflow-hidden"
+              style={{ backgroundColor: 'var(--bg-secondary)' }}
             >
               <ThreadView
                 threads={threads}
@@ -370,7 +369,7 @@ export default function EnhancedThreeColumnDashboard() {
                 onThreadSelect={setActiveThread}
                 onCloseThread={handleCloseThread}
               />
-            </motion.div>
+            </motion.aside>
           )}
         </AnimatePresence>
       </div>

@@ -1,0 +1,16 @@
+{
+  "extends": "@react-native/typescript-config/tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "esnext",
+    "types": ["node", "jest"],
+    "baseUrl": ".",
+    "paths": {
+      "#/*": ["./src/*"],
+      "crypto": ["./src/platform/crypto.ts"],
+      "multiformats/cid": ["node_modules/multiformats/types/src/cid.d.ts"],
+      "multiformats/hashes/hasher": ["node_modules/multiformats/types/src/hashes/hasher.d.ts"]
+    }
+  },
+  "exclude": ["bskyweb", "bskyembed", "web-build"]
+}

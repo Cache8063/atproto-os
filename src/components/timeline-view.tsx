@@ -124,7 +124,6 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
       }
 
       setNewPost('');
-      // Only refresh timeline after posting, not interactions
       await fetchTimeline();
     } catch (error: any) {
       console.error('Post error:', error);
@@ -137,7 +136,6 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
   const handleInteraction = async (action: 'like' | 'repost', post: TimelinePost) => {
     if (!isAuthenticated || !session || !service) return;
 
-    // Prevent multiple simultaneous interactions on same post
     const interactionKey = `${post.uri}-${action}`;
     if (interactionLoading[interactionKey]) return;
 
@@ -162,7 +160,6 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
         throw new Error(errorData.error || `Failed to ${action}`);
       }
 
-      // Update post counts immediately in local state
       setPosts(prevPosts => 
         prevPosts.map(p => {
           if (p.uri === post.uri) {
@@ -176,13 +173,11 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
         })
       );
 
-      // Show feedback
       setInteractionFeedback(prev => ({
         ...prev,
         [post.uri]: `${action === 'like' ? 'Liked' : 'Reposted'}!`
       }));
 
-      // Clear feedback after 2 seconds
       setTimeout(() => {
         setInteractionFeedback(prev => {
           const updated = { ...prev };
@@ -239,10 +234,10 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
   }, [autoRefresh, refreshInterval, isAuthenticated, session, service]);
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header - Fixed width */}
+    <div className="flex flex-col h-full">
+      {/* Header - Fixed height, constrained width */}
       <div className="flex-shrink-0 border-b" style={{ borderColor: 'var(--border-primary)' }}>
-        <div className="max-w-xl mx-auto px-4 py-4">
+        <div className="w-full max-w-xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Timeline</h2>
             <div className="flex items-center space-x-3">
@@ -268,7 +263,7 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
             </div>
           </div>
 
-          {/* Compose Box - Within constrained width */}
+          {/* Compose Box - Constrained within max-w-xl */}
           {isAuthenticated && (
             <form onSubmit={handlePost}>
               <div className="flex space-x-3">
@@ -280,8 +275,7 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
                   style={{ 
                     backgroundColor: 'var(--bg-secondary)',
                     borderColor: 'var(--border-primary)',
-                    color: 'var(--text-primary)',
-                    '--tw-ring-color': 'var(--interactive-primary)'
+                    color: 'var(--text-primary)'
                   }}
                   maxLength={300}
                   disabled={posting}
@@ -306,9 +300,9 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
         </div>
       </div>
 
-      {/* Timeline Content - Constrained within the middle column */}
+      {/* Timeline Content - Vertical scrolling with constrained width */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-xl mx-auto">
+        <div className="w-full max-w-xl mx-auto">
           {loading && posts.length === 0 ? (
             <div className="flex items-center justify-center h-32">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--interactive-primary)' }}></div>
@@ -329,17 +323,13 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
               No posts in timeline
             </div>
           ) : (
-            <div>
+            <div className="divide-y" style={{ borderColor: 'var(--border-primary)' }}>
               {posts.map((post) => (
                 <motion.article
                   key={post.uri}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="border-b hover:bg-opacity-5 transition-colors cursor-pointer relative"
-                  style={{ 
-                    borderColor: 'var(--border-primary)',
-                    padding: '16px'
-                  }}
+                  className="hover:bg-opacity-5 transition-colors cursor-pointer relative px-4 py-4"
                   onClick={() => handleThreadOpen(post)}
                 >
                   {interactionFeedback[post.uri] && (
@@ -356,7 +346,6 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
                   )}
 
                   <div className="flex space-x-3">
-                    {/* Avatar */}
                     <div className="flex-shrink-0">
                       {post.author.avatar ? (
                         <img
@@ -381,23 +370,21 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
                       )}
                     </div>
                     
-                    {/* Post Content */}
                     <div className="flex-1 min-w-0">
-                      {/* Author & Meta */}
                       <div className="flex items-center space-x-2 text-sm mb-1">
                         <span className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
                           {post.author.displayName}
                         </span>
-                        <span className="text-gray-500 truncate">
+                        <span style={{ color: 'var(--text-muted)' }} className="truncate">
                           @{post.author.handle}
                         </span>
-                        <span className="text-gray-500">·</span>
-                        <span className="text-gray-500 whitespace-nowrap">
+                        <span style={{ color: 'var(--text-muted)' }}>·</span>
+                        <span style={{ color: 'var(--text-muted)' }} className="whitespace-nowrap">
                           {formatTimeAgo(post.createdAt)}
                         </span>
                         {post.replyCount > 0 && (
                           <>
-                            <span className="text-gray-500">·</span>
+                            <span style={{ color: 'var(--text-muted)' }}>·</span>
                             <span 
                               className="text-xs px-2 py-0.5 rounded whitespace-nowrap"
                               style={{ backgroundColor: 'var(--interactive-primary)20', color: 'var(--text-accent)' }}
@@ -408,12 +395,10 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
                         )}
                       </div>
                       
-                      {/* Post Text */}
-                      <div className="mb-3 leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                      <div className="mb-3 leading-relaxed break-words" style={{ color: 'var(--text-primary)' }}>
                         {post.text}
                       </div>
                       
-                      {/* Action Buttons */}
                       <div className="flex items-center justify-between max-w-md text-sm">
                         <button
                           onClick={(e) => {
@@ -453,7 +438,7 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
                           <span className="group-hover:text-red-400">{post.likeCount}</span>
                         </button>
                         
-                        <div className="w-8"></div> {/* Spacer */}
+                        <div className="w-8"></div>
                       </div>
                     </div>
                   </div>
