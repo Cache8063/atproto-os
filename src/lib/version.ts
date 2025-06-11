@@ -1,5 +1,5 @@
 // Version and build information
-export const VERSION = 'v0.04a'
+export const VERSION = 'v0.05a'
 export const BUILD_TIME = new Date().toISOString()
 export const BUILD_DATE = new Date().toLocaleDateString()
 export const BUILD_TIME_LOCAL = new Date().toLocaleString()

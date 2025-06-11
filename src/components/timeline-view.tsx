@@ -48,8 +48,9 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
   const [newPost, setNewPost] = useState('');
   const [posting, setPosting] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [refreshInterval, setRefreshInterval] = useState(25); // 25 seconds
+  const [refreshInterval, setRefreshInterval] = useState(25);
   const [interactionFeedback, setInteractionFeedback] = useState<{[key: string]: string}>({});
+  const [interactionLoading, setInteractionLoading] = useState<{[key: string]: boolean}>({});
 
   const getAuthHeaders = () => {
     if (!session || !service) return {};
@@ -123,6 +124,7 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
       }
 
       setNewPost('');
+      // Only refresh timeline after posting, not interactions
       await fetchTimeline();
     } catch (error: any) {
       console.error('Post error:', error);
@@ -134,6 +136,12 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
 
   const handleInteraction = async (action: 'like' | 'repost', post: TimelinePost) => {
     if (!isAuthenticated || !session || !service) return;
+
+    // Prevent multiple simultaneous interactions on same post
+    const interactionKey = `${post.uri}-${action}`;
+    if (interactionLoading[interactionKey]) return;
+
+    setInteractionLoading(prev => ({ ...prev, [interactionKey]: true }));
 
     try {
       const response = await fetch('/api/atproto/interact', {
@@ -154,6 +162,20 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
         throw new Error(errorData.error || `Failed to ${action}`);
       }
 
+      // Update post counts immediately in local state
+      setPosts(prevPosts => 
+        prevPosts.map(p => {
+          if (p.uri === post.uri) {
+            return {
+              ...p,
+              likeCount: action === 'like' ? p.likeCount + 1 : p.likeCount,
+              repostCount: action === 'repost' ? p.repostCount + 1 : p.repostCount
+            };
+          }
+          return p;
+        })
+      );
+
       // Show feedback
       setInteractionFeedback(prev => ({
         ...prev,
@@ -169,11 +191,22 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
         });
       }, 2000);
 
-      // Refresh timeline to show updated counts
-      await fetchTimeline();
+      // DO NOT refresh timeline here - this was causing the page refresh feeling
+
     } catch (error: any) {
       console.error(`${action} error:`, error);
+    } finally {
+      setInteractionLoading(prev => {
+        const updated = { ...prev };
+        delete updated[interactionKey];
+        return updated;
+      });
     }
+  };
+
+  const handleThreadOpen = (post: TimelinePost) => {
+    console.log('Opening thread for post:', post.uri);
+    onOpenThread(post);
   };
 
   const formatTimeAgo = (timestamp: string) => {
@@ -210,15 +243,16 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-gray-700/30">
+      <div className="p-4 border-b" style={{ borderColor: 'var(--border-primary)' }}>
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white">Timeline</h2>
+          <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Timeline</h2>
           <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2 text-sm text-gray-400">
+            <div className="flex items-center space-x-2 text-sm" style={{ color: 'var(--text-muted)' }}>
               <span>Auto-refresh:</span>
               <button
                 onClick={() => setAutoRefresh(!autoRefresh)}
-                className={`p-1 rounded ${autoRefresh ? 'text-green-400' : 'text-gray-500'}`}
+                className="p-1 rounded"
+                style={{ color: autoRefresh ? 'var(--status-success)' : 'var(--text-muted)' }}
               >
                 {autoRefresh ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
               </button>
@@ -227,7 +261,8 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
             <button
               onClick={fetchTimeline}
               disabled={loading}
-              className="p-2 hover:bg-gray-700/50 rounded"
+              className="p-2 rounded hover:opacity-75"
+              style={{ color: 'var(--text-secondary)' }}
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
@@ -243,17 +278,24 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
                 value={newPost}
                 onChange={(e) => setNewPost(e.target.value)}
                 placeholder="What's happening?"
-                className="flex-1 px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-2 rounded border focus:outline-none focus:ring-2"
+                style={{ 
+                  backgroundColor: 'var(--bg-secondary)',
+                  borderColor: 'var(--border-primary)',
+                  color: 'var(--text-primary)',
+                  '--tw-ring-color': 'var(--interactive-primary)'
+                }}
                 maxLength={300}
                 disabled={posting}
               />
               <button
                 type="submit"
                 disabled={!newPost.trim() || posting}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed rounded flex items-center space-x-2"
+                className="px-4 py-2 rounded flex items-center space-x-2 disabled:opacity-50"
+                style={{ backgroundColor: 'var(--interactive-primary)', color: 'var(--text-primary)' }}
               >
                 {posting ? (
-                  <div className="w-4 h-4 border border-white/20 border-t-white rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <Send className="w-4 h-4" />
                 )}
@@ -268,20 +310,21 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
       <div className="flex-1 overflow-y-auto">
         {loading && posts.length === 0 ? (
           <div className="flex items-center justify-center h-32">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-400"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2" style={{ borderColor: 'var(--interactive-primary)' }}></div>
           </div>
         ) : error ? (
           <div className="text-center p-6">
-            <div className="text-red-400 mb-4">{error}</div>
+            <div className="mb-4" style={{ color: 'var(--status-error)' }}>{error}</div>
             <button 
               onClick={fetchTimeline}
-              className="text-blue-400 hover:text-blue-300"
+              className="hover:opacity-75"
+              style={{ color: 'var(--interactive-primary)' }}
             >
               Retry
             </button>
           </div>
         ) : posts.length === 0 ? (
-          <div className="text-center text-gray-400 p-6">
+          <div className="text-center p-6" style={{ color: 'var(--text-muted)' }}>
             No posts in timeline
           </div>
         ) : (
@@ -291,14 +334,16 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
                 key={post.uri}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="p-4 border-b border-gray-700/20 hover:bg-gray-800/30 transition-colors relative"
+                className="p-4 border-b hover:opacity-90 transition-colors relative"
+                style={{ borderColor: 'var(--border-primary)20' }}
               >
                 {interactionFeedback[post.uri] && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
-                    className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs flex items-center space-x-1"
+                    className="absolute top-2 right-2 px-2 py-1 rounded text-xs flex items-center space-x-1"
+                    style={{ backgroundColor: 'var(--status-success)', color: 'var(--text-primary)' }}
                   >
                     <CheckCircle className="w-3 h-3" />
                     <span>{interactionFeedback[post.uri]}</span>
@@ -312,10 +357,20 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
                         src={post.author.avatar}
                         alt={post.author.displayName}
                         className="w-10 h-10 rounded-full object-cover"
+                        style={{ width: '40px', height: '40px', minWidth: '40px', minHeight: '40px' }}
                       />
                     ) : (
-                      <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium text-white">
+                      <div 
+                        className="w-10 h-10 rounded-full flex items-center justify-center"
+                        style={{ 
+                          backgroundColor: 'var(--bg-tertiary)',
+                          width: '40px', 
+                          height: '40px', 
+                          minWidth: '40px', 
+                          minHeight: '40px' 
+                        }}
+                      >
+                        <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                           {post.author.displayName[0]?.toUpperCase()}
                         </span>
                       </div>
@@ -324,21 +379,21 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
                   
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-2 text-sm">
-                      <span className="font-medium text-white">
+                      <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
                         {post.author.displayName}
                       </span>
-                      <span className="text-gray-400">@{post.author.handle}</span>
-                      <span className="text-gray-500">{formatTimeAgo(post.createdAt)}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>@{post.author.handle}</span>
+                      <span style={{ color: 'var(--text-muted)' }}>{formatTimeAgo(post.createdAt)}</span>
                     </div>
                     
-                    <div className="mt-1 text-gray-200 break-words">
+                    <div className="mt-1 break-words" style={{ color: 'var(--text-primary)' }}>
                       {post.text}
                     </div>
                     
-                    <div className="flex items-center space-x-6 mt-3 text-sm text-gray-400">
+                    <div className="flex items-center space-x-6 mt-3 text-sm" style={{ color: 'var(--text-muted)' }}>
                       <button
-                        onClick={() => onOpenThread(post)}
-                        className="flex items-center space-x-1 hover:text-blue-400 transition-colors"
+                        onClick={() => handleThreadOpen(post)}
+                        className="flex items-center space-x-1 hover:opacity-75 transition-colors hover:text-blue-400"
                       >
                         <MessageCircle className="w-4 h-4" />
                         <span>{post.replyCount}</span>
@@ -346,17 +401,19 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
                       
                       <button
                         onClick={() => handleInteraction('repost', post)}
-                        className="flex items-center space-x-1 hover:text-green-400 transition-colors"
+                        disabled={interactionLoading[`${post.uri}-repost`]}
+                        className="flex items-center space-x-1 hover:opacity-75 transition-colors hover:text-green-400 disabled:opacity-50"
                       >
-                        <Repeat className="w-4 h-4" />
+                        <Repeat className={`w-4 h-4 ${interactionLoading[`${post.uri}-repost`] ? 'animate-spin' : ''}`} />
                         <span>{post.repostCount}</span>
                       </button>
                       
                       <button
                         onClick={() => handleInteraction('like', post)}
-                        className="flex items-center space-x-1 hover:text-red-400 transition-colors"
+                        disabled={interactionLoading[`${post.uri}-like`]}
+                        className="flex items-center space-x-1 hover:opacity-75 transition-colors hover:text-red-400 disabled:opacity-50"
                       >
-                        <Heart className="w-4 h-4" />
+                        <Heart className={`w-4 h-4 ${interactionLoading[`${post.uri}-like`] ? 'animate-spin' : ''}`} />
                         <span>{post.likeCount}</span>
                       </button>
                     </div>

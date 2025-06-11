@@ -1,1 +1,2 @@
-# Copy the enhanced thread conversation code from above
+import EnhancedThreadConversation from './thread-view'
+export default EnhancedThreadConversation
