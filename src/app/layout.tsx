@@ -1,12 +1,9 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
+import { ThemeProvider } from '@/lib/themes'
 
-const inter = Inter({ subsets: ['latin'] })
-
-export const metadata: Metadata = {
+export const metadata = {
   title: 'AT Protocol Dashboard',
-  description: 'Modern dashboard for AT Protocol management',
+  description: 'Professional AT Protocol client',
 }
 
 export default function RootLayout({
@@ -15,9 +12,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        {children}
+    <html lang="en" suppressHydrationWarning>
+      <body className="bg-bg text-text">
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   )
