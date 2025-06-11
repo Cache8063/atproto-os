@@ -137,6 +137,25 @@ class HybridATProtoAuth {
       return false
     }
   }
+
+  // Set session from stored data (for persistence)
+  async setSession(session: AuthSession, service: string): Promise<boolean> {
+    try {
+      this.session = session
+      this.currentService = service
+      this.agent = new BskyAgent({ service })
+      
+      console.log('Auth: Attempting to resume session for:', session.handle)
+      await this.agent.resumeSession(session)
+      console.log('Auth: Session resumed successfully')
+      return true
+    } catch (error) {
+      console.error('Auth: Failed to resume session:', error)
+      this.session = null
+      this.agent = null
+      return false
+    }
+  }
 }
 
 export const hybridATProtoAuth = new HybridATProtoAuth()
@@ -158,6 +177,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false)
   const [service, setService] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
+
+  // Load session from sessionStorage on mount
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const storedSession = sessionStorage.getItem('atproto_session')
+        const storedService = sessionStorage.getItem('atproto_service')
+        
+        if (storedSession && storedService) {
+          const parsedSession = JSON.parse(storedSession)
+          console.log('Auth: Found stored session for:', parsedSession.handle)
+          
+          // Try to restore the session with the auth instance
+          const success = await hybridATProtoAuth.setSession(parsedSession, storedService)
+          
+          if (success) {
+            console.log('Auth: Session restored successfully')
+            setSession(parsedSession)
+            setService(storedService)
+            setIsAuthenticated(true)
+          } else {
+            console.log('Auth: Session restoration failed, clearing storage')
+            sessionStorage.removeItem('atproto_session')
+            sessionStorage.removeItem('atproto_service')
+          }
+        } else {
+          console.log('Auth: No stored session found')
+        }
+      } catch (error) {
+        console.error('Auth: Error during session restoration:', error)
+        sessionStorage.removeItem('atproto_session')
+        sessionStorage.removeItem('atproto_service')
+      } finally {
+        setIsInitialized(true)
+      }
+    }
+
+    restoreSession()
+  }, [])
 
   const login = async (credentials: AuthCredentials) => {
     setLoading(true)
@@ -167,6 +226,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(result.session)
         setService(result.service || null)
         setIsAuthenticated(true)
+        
+        // Store in sessionStorage for persistence
+        sessionStorage.setItem('atproto_session', JSON.stringify(result.session))
+        if (result.service) {
+          sessionStorage.setItem('atproto_service', result.service)
+        }
+        
+        console.log('Auth: Login successful, session stored')
       } else {
         throw new Error('Login failed')
       }
@@ -185,6 +252,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null)
       setService(null)
       setIsAuthenticated(false)
+      
+      // Clear stored session
+      sessionStorage.removeItem('atproto_session')
+      sessionStorage.removeItem('atproto_service')
+      
+      console.log('Auth: Logged out successfully')
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
@@ -199,6 +272,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     service,
     login,
     logout
+  }
+
+  // Don't render until we've tried to restore the session
+  if (!isInitialized) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400"></div>
+      </div>
+    )
   }
 
   return (

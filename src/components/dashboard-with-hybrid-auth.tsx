@@ -1,5 +1,5 @@
 'use client'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import { LogIn } from 'lucide-react'
 import { useAuth, AuthProvider } from '@/contexts/hybrid-auth-context'
@@ -11,13 +11,21 @@ function DashboardContent() {
   const { isAuthenticated, login, loading, session, service, logout } = useAuth()
   const [showLogin, setShowLogin] = useState(false)
 
-  // DEBUG: Log auth state
-  console.log('Dashboard Debug:', {
-    isAuthenticated,
-    hasSession: !!session,
-    sessionHandle: session?.handle,
-    loading
-  })
+  // DEBUG: Log auth state and sessionStorage
+  useEffect(() => {
+    const storedSession = sessionStorage.getItem('atproto_session')
+    const storedService = sessionStorage.getItem('atproto_service')
+    
+    console.log('Dashboard Debug:', {
+      isAuthenticated,
+      hasSession: !!session,
+      sessionHandle: session?.handle,
+      loading,
+      hasStoredSession: !!storedSession,
+      hasStoredService: !!storedService,
+      service
+    })
+  }, [isAuthenticated, session, loading, service])
 
   const handleLogin = async (credentials: { identifier: string; password: string }) => {
     await login(credentials)
