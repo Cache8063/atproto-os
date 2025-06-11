@@ -20,7 +20,7 @@ export function useAuth() {
   const [authState, setAuthState] = useState<AuthState>({
     isAuthenticated: false
   })
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true) // Start as loading
   const [error, setError] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
@@ -30,11 +30,14 @@ export function useAuth() {
     if (stored) {
       try {
         const parsed = JSON.parse(stored)
+        console.log('Found stored auth:', parsed)
         setAuthState({ ...parsed, isAuthenticated: true })
       } catch (e) {
+        console.error('Invalid stored auth:', e)
         localStorage.removeItem('atproto-auth')
       }
     }
+    setLoading(false)
   }, [])
 
   const login = async ({ identifier, password }: LoginCredentials) => {
@@ -42,18 +45,43 @@ export function useAuth() {
     setError(null)
 
     try {
-      const response = await fetch('/xrpc/com.atproto.server.createSession', {
+      // Try to determine the service endpoint
+      let service = 'https://bsky.social'
+      if (identifier.includes('.')) {
+        // If identifier looks like a domain, try to resolve it
+        try {
+          const resolveResponse = await fetch(`https://${identifier}/.well-known/atproto-did`)
+          if (resolveResponse.ok) {
+            service = `https://${identifier}`
+          }
+        } catch (e) {
+          // Fall back to bsky.social
+        }
+      }
+
+      console.log('Attempting login to:', service)
+      
+      const response = await fetch(`${service}/xrpc/com.atproto.server.createSession`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier, password })
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          identifier: identifier.trim(), 
+          password 
+        })
       })
 
+      console.log('Login response status:', response.status)
+
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Login failed')
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Login error:', errorData)
+        throw new Error(errorData.message || `Login failed (${response.status})`)
       }
 
       const data = await response.json()
+      console.log('Login successful:', { did: data.did, handle: data.handle })
       
       const newAuthState: AuthState = {
         isAuthenticated: true,
@@ -62,7 +90,7 @@ export function useAuth() {
         did: data.did,
         handle: data.handle,
         displayName: data.displayName,
-        avatar: data.avatar
+        avatar: data.avatar,
       }
 
       setAuthState(newAuthState)
@@ -72,7 +100,9 @@ export function useAuth() {
       queryClient.clear()
 
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      console.error('Login failed:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Login failed'
+      setError(errorMessage)
       throw err
     } finally {
       setLoading(false)
@@ -80,16 +110,18 @@ export function useAuth() {
   }
 
   const logout = () => {
+    console.log('Logging out')
     setAuthState({ isAuthenticated: false })
     localStorage.removeItem('atproto-auth')
     queryClient.clear()
+    setError(null)
   }
 
   const refreshSession = async () => {
     if (!authState.refreshJwt) return false
 
     try {
-      const response = await fetch('/xrpc/com.atproto.server.refreshSession', {
+      const response = await fetch('https://bsky.social/xrpc/com.atproto.server.refreshSession', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,6 +144,7 @@ export function useAuth() {
       return true
 
     } catch (err) {
+      console.error('Session refresh failed:', err)
       logout() // Force re-login if refresh fails
       return false
     }

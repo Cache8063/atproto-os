@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AT Protocol Auth Test</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div id="root">Loading...</div>
+    
+    <script type="text/babel">
+        function AuthDebug() {
+            const [debugInfo, setDebugInfo] = React.useState({});
+            
+            React.useEffect(() => {
+                const stored = localStorage.getItem('atproto-auth');
+                setDebugInfo({
+                    hasLocalStorage: !!stored,
+                    localStorageContent: stored,
+                    currentUrl: window.location.href,
+                    timestamp: new Date().toISOString(),
+                    userAgent: navigator.userAgent
+                });
+            }, []);
+            
+            return (
+                <div className="p-8 bg-gray-100 min-h-screen">
+                    <h1 className="text-2xl font-bold mb-4">Auth System Debug</h1>
+                    <div className="bg-white p-4 rounded border mb-4">
+                        <h2 className="font-bold mb-2">Debug Info:</h2>
+                        <pre className="text-sm overflow-auto">
+                            {JSON.stringify(debugInfo, null, 2)}
+                        </pre>
+                    </div>
+                    
+                    <div className="space-x-2">
+                        <button 
+                            className="bg-blue-500 text-white px-4 py-2 rounded"
+                            onClick={() => {
+                                localStorage.setItem('test-key', 'test-value');
+                                setDebugInfo(prev => ({...prev, testWrite: 'success'}));
+                            }}
+                        >
+                            Test localStorage
+                        </button>
+                        
+                        <button 
+                            className="bg-red-500 text-white px-4 py-2 rounded"
+                            onClick={() => {
+                                localStorage.clear();
+                                setDebugInfo(prev => ({...prev, cleared: true}));
+                            }}
+                        >
+                            Clear localStorage
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+        
+        function AuthLogin() {
+            const [identifier, setIdentifier] = React.useState('');
+            const [password, setPassword] = React.useState('');
+            const [loading, setLoading] = React.useState(false);
+            const [error, setError] = React.useState('');
+            
+            const handleSubmit = async (e) => {
+                e.preventDefault();
+                setLoading(true);
+                setError('');
+                
+                try {
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    if (identifier === 'test' && password === 'test') {
+                        const authData = {
+                            isAuthenticated: true,
+                            accessJwt: 'mock-jwt-token',
+                            did: 'did:plc:test',
+                            handle: 'test.bsky.social',
+                            timestamp: new Date().toISOString()
+                        };
+                        localStorage.setItem('atproto-auth', JSON.stringify(authData));
+                        alert('Mock login successful! Check the debug view.');
+                    } else {
+                        throw new Error('Use test/test for credentials');
+                    }
+                } catch (err) {
+                    setError(err.message);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            
+            return (
+                <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                    <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md w-96">
+                        <h2 className="text-2xl font-bold mb-6 text-center">AT Protocol Login</h2>
+                        
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 rounded p-4 mb-4">
+                                <p className="text-red-600 text-sm">{error}</p>
+                            </div>
+                        )}
+                        
+                        <div className="mb-4">
+                            <input
+                                type="text"
+                                placeholder="Username (try 'test')"
+                                value={identifier}
+                                onChange={(e) => setIdentifier(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                                required
+                            />
+                        </div>
+                        
+                        <div className="mb-6">
+                            <input
+                                type="password"
+                                placeholder="Password (try 'test')"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                                required
+                            />
+                        </div>
+                        
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600 disabled:opacity-50"
+                        >
+                            {loading ? 'Signing in...' : 'Sign in'}
+                        </button>
+                        
+                        <p className="text-xs text-gray-500 mt-4 text-center">
+                            This is a mock login for testing. Use "test" for both username and password.
+                        </p>
+                    </form>
+                </div>
+            );
+        }
+        
+        function App() {
+            const [currentView, setCurrentView] = React.useState('debug');
+            
+            return (
+                <div>
+                    <div className="bg-gray-800 text-white p-4 flex justify-between items-center">
+                        <h1 className="text-xl font-bold">AT Protocol Auth Test</h1>
+                        <div className="space-x-2">
+                            <button 
+                                onClick={() => setCurrentView('debug')}
+                                className={`px-3 py-1 rounded ${currentView === 'debug' ? 'bg-blue-600' : 'bg-gray-600'}`}
+                            >
+                                Debug
+                            </button>
+                            <button 
+                                onClick={() => setCurrentView('login')}
+                                className={`px-3 py-1 rounded ${currentView === 'login' ? 'bg-blue-600' : 'bg-gray-600'}`}
+                            >
+                                Login Test
+                            </button>
+                        </div>
+                    </div>
+                    
+                    {currentView === 'debug' ? <AuthDebug /> : <AuthLogin />}
+                </div>
+            );
+        }
+        
+        // Mount the app
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+</body>
+</html>
