@@ -61,3 +61,32 @@
 | **Theme System** | ✅ Complete | 90% - 4 themes working |
 
 **Overall**: Production-ready core with real AT Protocol data integration.
+
+## [Unreleased] - 2024-12-XX
+
+### Added
+- Enhanced timeline state management using React Query patterns from Bluesky
+- Feed slice architecture for better post organization
+- Optimistic updates for like/repost actions with rollback on failure
+- Cursor-based pagination for infinite scroll timeline
+- Post shadow system for immediate UI feedback
+- Proper error handling and retry logic for timeline fetching
+
+### Fixed
+- Timeline refetching entire feed on each interaction
+- Missing authentication flow for AT Protocol login
+- No error recovery when timeline fetch fails
+
+### Technical Improvements
+- Migrated to useInfiniteQuery for timeline pagination
+- Added PostShadow interface for optimistic updates
+- Implemented feed slice grouping similar to Bluesky's architecture
+- Added proper React Query cache management
+
+### TODO
+- [ ] Add AT Protocol authentication (login/logout)
+- [ ] Implement media embed support (images, videos, links)
+- [ ] Add threading/reply chain support
+- [ ] Add real-time timeline updates
+- [ ] Implement post composition interface
+- [ ] Add user profile management
