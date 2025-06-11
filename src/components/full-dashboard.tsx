@@ -121,6 +121,7 @@ const TimelineWidget = () => {
   const [error, setError] = useState<string | null>(null)
   const [newPost, setNewPost] = useState('')
   const [posting, setPosting] = useState(false)
+  const [interactionLoading, setInteractionLoading] = useState<string | null>(null)
 
   const getAuthHeaders = () => {
     if (!session || !service) return {}
@@ -214,6 +215,44 @@ const TimelineWidget = () => {
       setError(error.message || 'Failed to post')
     } finally {
       setPosting(false)
+    }
+  }
+
+  const handleInteraction = async (action: 'like' | 'repost' | 'reply', postUri: string) => {
+    if (!isAuthenticated || !session || !service || interactionLoading) return
+
+    setInteractionLoading(postUri)
+    try {
+      console.log(`Timeline Widget: ${action} on post:`, postUri)
+      
+      const response = await fetch('/api/atproto/interact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({ 
+          action, 
+          postUri,
+          // For reply, we'd need to implement a reply modal
+          text: action === 'reply' ? 'Quick reply!' : undefined
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Failed to ${action}`)
+      }
+
+      console.log(`Timeline Widget: ${action} successful`)
+      // Refresh timeline to show updated counts
+      await fetchTimeline()
+    } catch (error: any) {
+      console.error(`${action} error:`, error)
+      // Show brief error without disrupting timeline
+      setTimeout(() => setError(null), 3000)
+    } finally {
+      setInteractionLoading(null)
     }
   }
 
@@ -329,11 +368,21 @@ const TimelineWidget = () => {
                       <img
                         src={post.author.avatar}
                         alt={post.author.displayName}
-                        className="w-6 h-6 rounded-full"
+                        className="w-5 h-5 rounded-full object-cover bg-gray-600"
+                        style={{ 
+                          minWidth: '20px',
+                          minHeight: '20px',
+                          maxWidth: '20px', 
+                          maxHeight: '20px'
+                        }}
+                        onError={(e) => {
+                          // Hide broken images and show fallback
+                          (e.target as HTMLImageElement).style.display = 'none'
+                        }}
                       />
                     ) : (
-                      <div className="w-6 h-6 bg-gray-600 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white">
+                      <div className="w-5 h-5 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-xs text-white font-medium">
                           {post.author.displayName[0]?.toUpperCase()}
                         </span>
                       </div>
@@ -357,19 +406,45 @@ const TimelineWidget = () => {
                       {post.text.length > 120 ? post.text.substring(0, 120) + '...' : post.text}
                     </div>
                     
-                    <div className="flex items-center space-x-3 mt-1.5 text-xs text-gray-400">
-                      <div className="flex items-center space-x-0.5">
-                        <Reply className="w-2.5 h-2.5" />
+                    <div className="flex items-center space-x-4 mt-1.5 text-xs text-gray-400">
+                      <button
+                        onClick={() => handleInteraction('reply', post.uri)}
+                        disabled={!!interactionLoading}
+                        className="flex items-center space-x-0.5 hover:text-blue-400 transition-colors disabled:opacity-50"
+                      >
+                        {interactionLoading === post.uri ? (
+                          <div className="w-2.5 h-2.5 border border-gray-400 border-t-blue-400 rounded-full animate-spin" />
+                        ) : (
+                          <Reply className="w-2.5 h-2.5" />
+                        )}
                         <span>{post.replyCount}</span>
-                      </div>
-                      <div className="flex items-center space-x-0.5">
-                        <Repeat className="w-2.5 h-2.5" />
+                      </button>
+                      
+                      <button
+                        onClick={() => handleInteraction('repost', post.uri)}
+                        disabled={!!interactionLoading}
+                        className="flex items-center space-x-0.5 hover:text-green-400 transition-colors disabled:opacity-50"
+                      >
+                        {interactionLoading === post.uri ? (
+                          <div className="w-2.5 h-2.5 border border-gray-400 border-t-green-400 rounded-full animate-spin" />
+                        ) : (
+                          <Repeat className="w-2.5 h-2.5" />
+                        )}
                         <span>{post.repostCount}</span>
-                      </div>
-                      <div className="flex items-center space-x-0.5">
-                        <Heart className="w-2.5 h-2.5" />
+                      </button>
+                      
+                      <button
+                        onClick={() => handleInteraction('like', post.uri)}
+                        disabled={!!interactionLoading}
+                        className="flex items-center space-x-0.5 hover:text-red-400 transition-colors disabled:opacity-50"
+                      >
+                        {interactionLoading === post.uri ? (
+                          <div className="w-2.5 h-2.5 border border-gray-400 border-t-red-400 rounded-full animate-spin" />
+                        ) : (
+                          <Heart className="w-2.5 h-2.5" />
+                        )}
                         <span>{post.likeCount}</span>
-                      </div>
+                      </button>
                     </div>
                   </div>
                 </div>
