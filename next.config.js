@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Removed deprecated experimental.appDir - it's the default in Next.js 14
+  // App directory is default in Next.js 14, no need for experimental flag
 }
 
 module.exports = nextConfig

@@ -103,36 +103,6 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
     }
   };
 
-  const handlePost = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPost.trim() || posting || !isAuthenticated) return;
-
-    setPosting(true);
-    try {
-      const response = await fetch('/api/atproto/timeline', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders()
-        },
-        body: JSON.stringify({ text: newPost.trim() })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to post');
-      }
-
-      setNewPost('');
-      await fetchTimeline();
-    } catch (error: any) {
-      console.error('Post error:', error);
-      setError(error.message || 'Failed to post');
-    } finally {
-      setPosting(false);
-    }
-  };
-
   const handleInteraction = async (action: 'like' | 'repost', post: TimelinePost) => {
     if (!isAuthenticated || !session || !service) return;
 
@@ -197,9 +167,34 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
     }
   };
 
-  const handleThreadOpen = (post: TimelinePost) => {
+  const handleThreadOpen = async (post: TimelinePost) => {
     console.log('Opening thread for post:', post.uri);
-    onOpenThread(post);
+    
+    // Fetch the full thread data
+    try {
+      const response = await fetch(`/api/atproto/thread?uri=${encodeURIComponent(post.uri)}`, {
+        headers: getAuthHeaders()
+      });
+      
+      if (response.ok) {
+        const threadData = await response.json();
+        console.log('Thread data loaded:', threadData);
+        
+        // Pass the enhanced post data with thread info
+        onOpenThread({
+          ...post,
+          threadData: threadData.thread
+        });
+      } else {
+        console.error('Failed to load thread');
+        // Fall back to opening with just the post data
+        onOpenThread(post);
+      }
+    } catch (error) {
+      console.error('Thread fetch error:', error);
+      // Fall back to opening with just the post data
+      onOpenThread(post);
+    }
   };
 
   const formatTimeAgo = (timestamp: string) => {
@@ -262,41 +257,6 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
               </button>
             </div>
           </div>
-
-          {/* Compose Box - Constrained within max-w-xl */}
-          {isAuthenticated && (
-            <form onSubmit={handlePost}>
-              <div className="flex space-x-3">
-                <textarea
-                  value={newPost}
-                  onChange={(e) => setNewPost(e.target.value)}
-                  placeholder="What's happening?"
-                  className="flex-1 px-3 py-2 rounded border focus:outline-none focus:ring-2 resize-none"
-                  style={{ 
-                    backgroundColor: 'var(--bg-secondary)',
-                    borderColor: 'var(--border-primary)',
-                    color: 'var(--text-primary)'
-                  }}
-                  maxLength={300}
-                  disabled={posting}
-                  rows={3}
-                />
-                <button
-                  type="submit"
-                  disabled={!newPost.trim() || posting}
-                  className="px-4 py-2 rounded flex items-center space-x-2 disabled:opacity-50 self-start"
-                  style={{ backgroundColor: 'var(--interactive-primary)', color: 'var(--text-primary)' }}
-                >
-                  {posting ? (
-                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                  <span>Post</span>
-                </button>
-              </div>
-            </form>
-          )}
         </div>
       </div>
 

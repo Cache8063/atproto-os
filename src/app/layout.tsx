@@ -1,5 +1,6 @@
 import './globals.css'
-import { ThemeProvider } from '@/lib/themes'
+import { AuthProvider } from '@/contexts/hybrid-auth-context'
+import { ThemeProvider } from '@/contexts/theme-context'
 
 export const metadata = {
   title: 'AT Protocol Dashboard',
@@ -15,7 +16,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className="bg-bg text-text">
         <ThemeProvider>
-          {children}
+          <AuthProvider>
+            {children}
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
