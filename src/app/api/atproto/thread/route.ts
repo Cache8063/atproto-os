@@ -3,7 +3,6 @@ import { BskyAgent } from '@atproto/api'
 
 export async function GET(request: NextRequest) {
   try {
-    // Get auth headers
     const authHeader = request.headers.get('authorization')
     const sessionHeader = request.headers.get('x-at-session')
     const serviceHeader = request.headers.get('x-at-service')
@@ -12,7 +11,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
     }
 
-    // Parse session and create agent
     const sessionData = JSON.parse(sessionHeader)
     const agent = new BskyAgent({ service: serviceHeader })
     
@@ -24,7 +22,6 @@ export async function GET(request: NextRequest) {
       active: true
     })
 
-    // Get the post URI from query params
     const { searchParams } = new URL(request.url)
     const postUri = searchParams.get('uri')
     
@@ -34,17 +31,15 @@ export async function GET(request: NextRequest) {
 
     console.log(`Thread API: Fetching thread for ${postUri}`)
 
-    // Fetch the thread using AT Protocol
     const threadResponse = await agent.getPostThread({
       uri: postUri,
-      depth: 10 // Get nested replies
+      depth: 10
     })
 
     if (!threadResponse.success) {
       throw new Error('Failed to fetch thread')
     }
 
-    // Process the thread data
     const processPost = (threadPost: any) => {
       if (!threadPost || !threadPost.post) return null
       
