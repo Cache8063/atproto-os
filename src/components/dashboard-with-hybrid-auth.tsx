@@ -9,16 +9,11 @@ import ModernDashboard from '@/components/modern-dashboard'
 import VersionFooter from '@/components/version-footer'
 
 function DashboardContent() {
-  const { isAuthenticated, login, loading, session, service, logout } = useAuth()
+  const { isAuthenticated, login, loading, session, service } = useAuth()
   const [showLogin, setShowLogin] = useState(false)
 
   const handleLogin = async (credentials: { identifier: string; password: string }) => {
     await login(credentials)
-    setShowLogin(false)
-  }
-
-  const handleLogout = async () => {
-    await logout()
     setShowLogin(false)
   }
 
@@ -85,52 +80,7 @@ function DashboardContent() {
     )
   }
 
-  return (
-    <div className="relative">
-      <ModernDashboard />
-      
-      {/* User info and logout in header */}
-      <div 
-        className="absolute top-4 right-4 flex items-center space-x-4 rounded-lg px-4 py-2 z-10 transition-all duration-300"
-        style={{ 
-          backgroundColor: 'var(--bg-secondary)',
-          color: 'var(--text-primary)',
-          border: '1px solid var(--border-primary)',
-          backdropFilter: 'blur(10px)'
-        }}
-      >
-        {session && (
-          <div className="text-sm">
-            <span style={{ color: 'var(--text-muted)' }}>Logged in as:</span>
-            <span className="ml-2 font-medium" style={{ color: 'var(--text-primary)' }}>
-              {session.handle}
-            </span>
-            {service && (
-              <div className="text-xs" style={{ color: 'var(--text-accent)' }}>
-                {service.replace('https://', '')}
-              </div>
-            )}
-          </div>
-        )}
-        <button
-          onClick={handleLogout}
-          className="px-3 py-1 rounded text-sm transition-all duration-300 hover:shadow-lg"
-          style={{ 
-            backgroundColor: 'var(--status-error)',
-            color: 'var(--text-primary)'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = '0 0 10px var(--border-glow)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = 'none'
-          }}
-        >
-          Logout
-        </button>
-      </div>
-    </div>
-  )
+  return <ModernDashboard />
 }
 
 export default function DashboardWithHybridAuth() {
