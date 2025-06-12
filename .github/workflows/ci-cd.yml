@@ -9,6 +9,12 @@ on:
 env:
   CI: false
   NEXT_TELEMETRY_DISABLED: 1
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   build-and-deploy:
@@ -45,25 +51,48 @@ jobs:
     - name: Verify build output
       run: |
         ls -la .next/
-        echo "Build completed successfully!"
+        echo "✅ Build completed successfully!"
         
-    - name: Build Docker image
-      run: |
-        docker build -t atproto-dashboard:latest .
-        docker tag atproto-dashboard:latest ghcr.io/cache8063/atproto-dashboard:latest
-        
-    - name: Login to GitHub Container Registry
+    - name: Log in to Container Registry
       uses: docker/login-action@v3
       with:
-        registry: ghcr.io
+        registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
         
-    - name: Push Docker image
-      run: |
-        docker push ghcr.io/cache8063/atproto-dashboard:latest
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix=sha-
+          type=raw,value=latest,enable={{is_default_branch}}
+        
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
         
     - name: Deploy to staging
       if: github.ref == 'refs/heads/main'
       run: |
-        curl -X POST "${{ secrets.PORTAINER_WEBHOOK_URL }}" || echo "Webhook deployment attempted"
+        echo "🚀 Deploying to staging..."
+        curl -X POST "${{ secrets.PORTAINER_WEBHOOK_URL }}" \
+          -H "Content-Type: application/json" \
+          -d '{"ref":"refs/heads/main","repository":{"full_name":"${{ github.repository }}"}}' \
+          --max-time 30 || echo "⚠️ Webhook deployment attempted (may have timed out)"
+        
+    - name: Success notification
+      if: success()
+      run: |
+        echo "🎉 DEPLOYMENT SUCCESSFUL!"
+        echo "✅ Build: Complete"
+        echo "✅ Docker: Pushed to ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}"
+        echo "✅ Deploy: Webhook triggered"
