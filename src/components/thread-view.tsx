@@ -11,7 +11,8 @@ import {
   ChevronDown,
   ChevronUp,
   Users,
-  CheckCircle
+  CheckCircle,
+  RefreshCw
 } from 'lucide-react'
 import { useAuth } from '@/contexts/hybrid-auth-context'
 
@@ -24,6 +25,7 @@ interface ThreadData {
     displayName: string
     avatar?: string
   }
+  threadData?: any // Full thread data from AT Protocol
 }
 
 interface ThreadViewProps {
@@ -42,6 +44,21 @@ interface ThreadParticipant {
   lastActive: string
 }
 
+// Helper function to flatten thread data recursively
+const flattenThreadData = (threadData: any): any[] => {
+  if (!threadData) return []
+  
+  const posts = [threadData]
+  
+  if (threadData.replies && Array.isArray(threadData.replies)) {
+    threadData.replies.forEach((reply: any) => {
+      posts.push(...flattenThreadData(reply))
+    })
+  }
+  
+  return posts
+}
+
 export default function ThreadView({ 
   threads, 
   activeThread, 
@@ -54,18 +71,35 @@ export default function ThreadView({
   const [participants, setParticipants] = useState<ThreadParticipant[]>([])
   const [showParticipants, setShowParticipants] = useState(false)
   const [expanded, setExpanded] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
   const currentThread = threads.find(t => t.id === activeThread)
 
-  // Calculate thread participants
+  // Calculate thread participants from thread data
   useEffect(() => {
     if (!currentThread) return
 
+    console.log('Calculating participants for thread:', currentThread.id)
+    console.log('Thread data:', currentThread.threadData)
+    console.log('Posts:', currentThread.posts)
+
     const participantMap = new Map<string, ThreadParticipant>()
     
-    currentThread.posts.forEach(post => {
+    // Use thread data if available, otherwise fall back to posts
+    let postsToProcess = []
+    
+    if (currentThread.threadData) {
+      // Flatten the thread data recursively
+      postsToProcess = flattenThreadData(currentThread.threadData)
+      console.log('Using thread data, flattened posts:', postsToProcess.length)
+    } else {
+      postsToProcess = currentThread.posts
+      console.log('Using fallback posts:', postsToProcess.length)
+    }
+    
+    postsToProcess.forEach(post => {
       const author = post.author
-      if (!author) return
+      if (!author || !author.did) return
 
       if (participantMap.has(author.did)) {
         const existing = participantMap.get(author.did)!
@@ -83,7 +117,9 @@ export default function ThreadView({
       }
     })
 
-    setParticipants(Array.from(participantMap.values()).sort((a, b) => b.postCount - a.postCount))
+    const participantsList = Array.from(participantMap.values()).sort((a, b) => b.postCount - a.postCount)
+    console.log('Calculated participants:', participantsList.length)
+    setParticipants(participantsList)
   }, [currentThread])
 
   const getAuthHeaders = () => {
@@ -98,6 +134,32 @@ export default function ThreadView({
         refreshJwt: session.refreshJwt
       }),
       'X-AT-Service': service
+    }
+  }
+
+  const refreshThread = async () => {
+    if (!currentThread || !currentThread.rootPost) return
+    
+    setRefreshing(true)
+    try {
+      const response = await fetch(`/api/atproto/thread?uri=${encodeURIComponent(currentThread.rootPost.uri)}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Thread refreshed:', data.thread)
+        
+        // TODO: Update the thread data in the parent component
+        // This would require a callback from the parent
+      }
+    } catch (error) {
+      console.error('Thread refresh error:', error)
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -127,6 +189,8 @@ export default function ThreadView({
       }
 
       setReplyText('')
+      // Refresh the thread to show the new reply
+      setTimeout(() => refreshThread(), 1000)
     } catch (error: any) {
       console.error('Reply error:', error)
     } finally {
@@ -168,6 +232,16 @@ export default function ThreadView({
         </div>
       </div>
     )
+  }
+
+  // Get posts to display - use thread data if available
+  let postsToDisplay = []
+  if (currentThread.threadData) {
+    postsToDisplay = flattenThreadData(currentThread.threadData)
+    console.log('Displaying from thread data:', postsToDisplay.length, 'posts')
+  } else {
+    postsToDisplay = currentThread.posts
+    console.log('Displaying from fallback posts:', postsToDisplay.length, 'posts')
   }
 
   return (
@@ -236,11 +310,29 @@ export default function ThreadView({
               className="px-2 py-1 rounded text-xs"
               style={{ backgroundColor: 'var(--interactive-primary)20', color: 'var(--text-accent)' }}
             >
-              {currentThread.posts.length} posts
+              {postsToDisplay.length} posts
             </span>
+            {currentThread.threadData && (
+              <span 
+                className="px-2 py-1 rounded text-xs"
+                style={{ backgroundColor: 'var(--status-success)20', color: 'var(--status-success)' }}
+              >
+                Full thread
+              </span>
+            )}
           </div>
           
           <div className="flex items-center space-x-2">
+            <button
+              onClick={refreshThread}
+              disabled={refreshing}
+              className="p-1 rounded hover:opacity-75"
+              style={{ color: 'var(--text-secondary)' }}
+              title="Refresh thread"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+            </button>
+            
             <button
               onClick={() => setShowParticipants(!showParticipants)}
               className="p-1 rounded hover:opacity-75"
@@ -334,9 +426,9 @@ export default function ThreadView({
             className="flex-1 overflow-y-auto"
           >
             <div className="p-4 space-y-4">
-              {currentThread.posts.map((post, index) => (
+              {postsToDisplay.map((post, index) => (
                 <motion.div
-                  key={post.uri || index}
+                  key={post.uri || `post-${index}`}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}

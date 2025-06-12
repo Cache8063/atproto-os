@@ -3,10 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   RefreshCw,
-  Send,
   Heart,
   Repeat,
-  Reply,
   MessageCircle,
   Play,
   Pause,
@@ -36,8 +34,25 @@ interface TimelinePost {
   } | null
 }
 
+interface ThreadData {
+  uri: string
+  cid: string
+  author: {
+    did: string
+    handle: string
+    displayName: string
+    avatar?: string
+  }
+  text: string
+  createdAt: string
+  replyCount: number
+  repostCount: number
+  likeCount: number
+  replies: ThreadData[]
+}
+
 interface TimelineViewProps {
-  onOpenThread: (post: TimelinePost) => void
+  onOpenThread: (post: TimelinePost, threadData?: ThreadData) => void
 }
 
 export default function TimelineView({ onOpenThread }: TimelineViewProps) {
@@ -45,12 +60,11 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
   const [posts, setPosts] = useState<TimelinePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [newPost, setNewPost] = useState('');
-  const [posting, setPosting] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
-  const [refreshInterval, setRefreshInterval] = useState(300); // 5 minutes = 300 seconds
+  const [refreshInterval, setRefreshInterval] = useState(300); // 5 minutes
   const [interactionFeedback, setInteractionFeedback] = useState<{[key: string]: string}>({});
   const [interactionLoading, setInteractionLoading] = useState<{[key: string]: boolean}>({});
+  const [threadLoading, setThreadLoading] = useState<{[key: string]: boolean}>({});
 
   const getAuthHeaders = () => {
     if (!session || !service) return {};
@@ -100,6 +114,27 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
       setError(error.message || 'Failed to load timeline');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchThreadData = async (postUri: string): Promise<ThreadData | null> => {
+    try {
+      const response = await fetch(`/api/atproto/thread?uri=${encodeURIComponent(postUri)}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch thread');
+      }
+      
+      const data = await response.json();
+      return data.thread;
+    } catch (error) {
+      console.error('Thread fetch error:', error);
+      return null;
     }
   };
 
@@ -170,30 +205,27 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
   const handleThreadOpen = async (post: TimelinePost) => {
     console.log('Opening thread for post:', post.uri);
     
-    // Fetch the full thread data
+    setThreadLoading(prev => ({ ...prev, [post.uri]: true }));
+    
     try {
-      const response = await fetch(`/api/atproto/thread?uri=${encodeURIComponent(post.uri)}`, {
-        headers: getAuthHeaders()
-      });
+      const threadData = await fetchThreadData(post.uri);
       
-      if (response.ok) {
-        const threadData = await response.json();
+      if (threadData) {
         console.log('Thread data loaded:', threadData);
-        
-        // Pass the enhanced post data with thread info
-        onOpenThread({
-          ...post,
-          threadData: threadData.thread
-        });
+        onOpenThread(post, threadData);
       } else {
-        console.error('Failed to load thread');
-        // Fall back to opening with just the post data
+        console.warn('No thread data received, opening with post only');
         onOpenThread(post);
       }
     } catch (error) {
       console.error('Thread fetch error:', error);
-      // Fall back to opening with just the post data
       onOpenThread(post);
+    } finally {
+      setThreadLoading(prev => {
+        const updated = { ...prev };
+        delete updated[post.uri];
+        return updated;
+      });
     }
   };
 
@@ -230,7 +262,7 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header - Fixed height, constrained width */}
+      {/* Header */}
       <div className="flex-shrink-0 border-b" style={{ borderColor: 'var(--border-primary)' }}>
         <div className="w-full max-w-xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between mb-4">
@@ -260,7 +292,7 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
         </div>
       </div>
 
-      {/* Timeline Content - Vertical scrolling with constrained width */}
+      {/* Timeline Content */}
       <div className="flex-1 overflow-y-auto">
         <div className="w-full max-w-xl mx-auto">
           {loading && posts.length === 0 ? (
@@ -302,6 +334,19 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
                     >
                       <CheckCircle className="w-3 h-3" />
                       <span>{interactionFeedback[post.uri]}</span>
+                    </motion.div>
+                  )}
+
+                  {/* Thread Loading Indicator */}
+                  {threadLoading[post.uri] && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="absolute top-2 left-2 px-2 py-1 rounded text-xs flex items-center space-x-1 z-10"
+                      style={{ backgroundColor: 'var(--interactive-primary)', color: 'var(--text-primary)' }}
+                    >
+                      <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Loading thread...</span>
                     </motion.div>
                   )}
 
@@ -365,10 +410,11 @@ export default function TimelineView({ onOpenThread }: TimelineViewProps) {
                             e.stopPropagation()
                             handleThreadOpen(post)
                           }}
-                          className="flex items-center space-x-1 hover:bg-blue-400/10 p-2 rounded-full transition-colors group"
+                          disabled={threadLoading[post.uri]}
+                          className="flex items-center space-x-1 hover:bg-blue-400/10 p-2 rounded-full transition-colors group disabled:opacity-50"
                           style={{ color: 'var(--text-muted)' }}
                         >
-                          <MessageCircle className="w-4 h-4 group-hover:text-blue-400" />
+                          <MessageCircle className={`w-4 h-4 group-hover:text-blue-400 ${threadLoading[post.uri] ? 'animate-spin' : ''}`} />
                           <span className="group-hover:text-blue-400">{post.replyCount}</span>
                         </button>
                         

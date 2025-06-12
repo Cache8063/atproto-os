@@ -4,29 +4,35 @@
   "description": "AT Protocol Dashboard",
   "scripts": {
     "dev": "next dev",
-    "build": "next build", 
+    "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "docker:build": "docker build -t atproto-dashboard .",
+    "docker:dev": "docker-compose up --build",
+    "docker:prod": "docker-compose -f portainer-stack.yml up",
+    "docker:clean": "docker system prune -f",
+    "deploy:staging": "./scripts/deploy.sh staging",
+    "deploy:prod": "./scripts/deploy.sh production"
   },
   "dependencies": {
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@tanstack/react-query": "^5.0.0",
     "@atproto/api": "^0.12.0",
-    "next": "^14.0.0",
+    "@tanstack/react-query": "^5.0.0",
+    "date-fns": "^2.30.0",
     "framer-motion": "^10.0.0",
     "lucide-react": "^0.263.1",
-    "date-fns": "^2.30.0"
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0",
-    "tailwindcss": "^3.4.0",
     "autoprefixer": "^10.4.0",
-    "postcss": "^8.4.0",
     "eslint": "^8.0.0",
-    "eslint-config-next": "^14.0.0"
+    "eslint-config-next": "^14.0.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.0.0"
   }
 }
