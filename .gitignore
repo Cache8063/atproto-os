@@ -75,3 +75,21 @@ jspm_packages/
 # Temporary folders
 tmp/
 temp/
+
+# Exclude any leftover mobile app files
+social-app-main/
+__mocks__/
+*.xcodeproj/
+*.xcworkspace/
+android/
+ios/
+
+# React Native
+*.hbc
+*.ipa
+*.apk
+.metro/
+
+# Testing
+coverage/
+.nyc_output/

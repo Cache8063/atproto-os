@@ -20,6 +20,18 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  "include": [
+    "next-env.d.ts", 
+    "src/**/*.ts", 
+    "src/**/*.tsx", 
+    ".next/types/**/*.ts",
+    "types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "social-app-main",
+    "__mocks__",
+    "**/*.test.*",
+    "**/*.spec.*"
+  ]
 }

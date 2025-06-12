@@ -12,7 +12,8 @@
     "docker:prod": "docker-compose -f portainer-stack.yml up",
     "docker:clean": "docker system prune -f",
     "deploy:staging": "./scripts/deploy.sh staging",
-    "deploy:prod": "./scripts/deploy.sh production"
+    "deploy:prod": "./scripts/deploy.sh production",
+    "test": "echo 'No tests configured yet'"
   },
   "dependencies": {
     "@atproto/api": "^0.12.0",

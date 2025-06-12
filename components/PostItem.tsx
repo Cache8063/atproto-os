@@ -1,28 +1,35 @@
 import React from 'react'
 import { AppBskyFeedDefs } from '@atproto/api'
-import { usePostShadow } from '../hooks/usePostShadow'
-import { usePostActions } from '../hooks/usePostActions'
 
 interface PostItemProps {
   post: AppBskyFeedDefs.PostView
-  reason?: AppBskyFeedDefs.ReasonRepost | AppBskyFeedDefs.ReasonPin
+  reason?: AppBskyFeedDefs.ReasonRepost
   feedContext?: string
 }
 
-export function PostItem({ post: originalPost, reason, feedContext }: PostItemProps) {
-  const post = usePostShadow(originalPost) // Apply optimistic updates
-  const { like, repost } = usePostActions(post)
-  
+export function PostItem({ post, reason, feedContext }: PostItemProps) {
+  const formatTimeAgo = (timestamp: string) => {
+    const now = new Date()
+    const posted = new Date(timestamp)
+    const diffMs = now.getTime() - posted.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMins / 60)
+    const diffDays = Math.floor(diffHours / 24)
+
+    if (diffMins < 1) return 'now'
+    if (diffMins < 60) return `${diffMins}m`
+    if (diffHours < 24) return `${diffHours}h`
+    if (diffDays < 30) return `${diffDays}d`
+    return posted.toLocaleDateString()
+  }
+
   return (
     <article className="border-b border-gray-200 p-4 hover:bg-gray-50">
-      {/* Reason (repost/pin indicator) */}
+      {/* Reason (repost indicator) */}
       {reason && (
         <div className="text-sm text-gray-500 mb-2">
           {reason.$type === 'app.bsky.feed.defs#reasonRepost' && (
-            <>�� Reposted by @{reason.by.handle}</>
-          )}
-          {reason.$type === 'app.bsky.feed.defs#reasonPin' && (
-            <>📌 Pinned</>
+            <>🔄 Reposted by @{reason.by.handle}</>
           )}
         </div>
       )}
@@ -30,41 +37,36 @@ export function PostItem({ post: originalPost, reason, feedContext }: PostItemPr
       {/* Post header */}
       <div className="flex items-center gap-3 mb-3">
         <img
-          src={post.author.avatar}
+          src={post.author.avatar || ''}
           alt={`@${post.author.handle}`}
           className="w-10 h-10 rounded-full"
         />
         <div>
-          <div className="font-semibold">{post.author.displayName}</div>
+          <div className="font-semibold">{post.author.displayName || post.author.handle}</div>
           <div className="text-gray-500 text-sm">@{post.author.handle}</div>
         </div>
         <div className="text-gray-500 text-sm ml-auto">
-          {new Date(post.indexedAt).toLocaleDateString()}
+          {formatTimeAgo(post.indexedAt)}
         </div>
       </div>
       
       {/* Post content */}
       <div className="mb-4">
-        <p className="whitespace-pre-wrap">{post.record?.text}</p>
+        <p className="whitespace-pre-wrap">
+          {typeof post.record === 'object' && post.record && 'text' in post.record 
+            ? (post.record as any).text 
+            : 'No content'
+          }
+        </p>
       </div>
       
       {/* Post actions */}
       <div className="flex items-center gap-6 text-gray-500">
-        <button
-          onClick={like}
-          className={`flex items-center gap-1 hover:text-red-500 ${
-            post.viewer?.like ? 'text-red-500' : ''
-          }`}
-        >
+        <button className="flex items-center gap-1 hover:text-red-500">
           ❤️ {post.likeCount || 0}
         </button>
         
-        <button
-          onClick={repost}
-          className={`flex items-center gap-1 hover:text-green-500 ${
-            post.viewer?.repost ? 'text-green-500' : ''
-          }`}
-        >
+        <button className="flex items-center gap-1 hover:text-green-500">
           🔄 {post.repostCount || 0}
         </button>
         

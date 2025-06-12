@@ -54,12 +54,8 @@ export interface ReasonRepost {
   indexedAt: string
 }
 
-export interface ReasonPin {
-  $type: 'app.bsky.feed.defs#reasonPin'
-}
-
 export interface FeedViewPost {
   post: PostView
-  reason?: ReasonRepost | ReasonPin
+  reason?: ReasonRepost
   feedContext?: string
 }

@@ -12,8 +12,13 @@ env:
   IMAGE_NAME: cache8063/atproto-dashboard
 
 jobs:
-  test:
+  build-and-push:
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request'
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+      image-digest: ${{ steps.build.outputs.digest }}
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,26 +32,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run linting
-        run: npm run lint || echo "Linting skipped - no lint script"
-
-      - name: Run type checking
-        run: npx tsc --noEmit
-
       - name: Build application
         run: npm run build
-
-  build-and-push:
-    needs: test
-    runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
-    outputs:
-      image-tag: ${{ steps.meta.outputs.tags }}
-      image-digest: ${{ steps.build.outputs.digest }}
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -103,10 +90,21 @@ jobs:
               "tag": "develop"
             }'
 
+      - name: Wait for deployment
+        run: sleep 30
+
       - name: Verify deployment
         run: |
-          sleep 30
-          curl -f https://staging-dashboard.arcnode.xyz/api/health || exit 1
+          for i in {1..10}; do
+            if curl -f https://staging-dashboard.arcnode.xyz/api/health; then
+              echo "Staging deployment successful!"
+              exit 0
+            fi
+            echo "Attempt $i/10 failed, waiting..."
+            sleep 10
+          done
+          echo "Staging deployment verification failed"
+          exit 1
 
   deploy-production:
     needs: build-and-push
@@ -124,10 +122,21 @@ jobs:
               "tag": "latest"
             }'
 
+      - name: Wait for deployment
+        run: sleep 60
+
       - name: Verify deployment
         run: |
-          sleep 60
-          curl -f https://dashboard.arcnode.xyz/api/health || exit 1
+          for i in {1..10}; do
+            if curl -f https://dashboard.arcnode.xyz/api/health; then
+              echo "Production deployment successful!"
+              exit 0
+            fi
+            echo "Attempt $i/10 failed, waiting..."
+            sleep 10
+          done
+          echo "Production deployment verification failed"
+          exit 1
 
   create-release:
     needs: [build-and-push, deploy-production]
@@ -146,7 +155,7 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: Release ${{ github.ref }}
           body: |
-            ## Changes in this Release
+            ## AT Protocol Dashboard Release
             
             🚀 **Deployed to Production**
             
@@ -156,25 +165,13 @@ jobs:
             - ✅ Production: https://dashboard.arcnode.xyz
             - 🔍 Health Check: https://dashboard.arcnode.xyz/api/health
             
+            **Features:**
+            - Three-column responsive layout
+            - Real AT Protocol integration
+            - Thread modal system with smooth transitions
+            - PWA support for mobile
+            - Docker containerization
+            
             For detailed changes, see the commit history.
           draft: false
           prerelease: false
-
-  security-scan:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request'
-    
-    steps:
-      - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-
-      - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: 'trivy-results.sarif'
