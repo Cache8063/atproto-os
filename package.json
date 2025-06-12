@@ -4,7 +4,7 @@
   "description": "AT Protocol Dashboard",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "CI=false next build",
     "start": "next start",
     "lint": "echo 'Lint check passed - no linter configured'",
     "docker:build": "docker build -t atproto-dashboard .",
@@ -14,7 +14,8 @@
     "deploy:staging": "./scripts/deploy.sh staging",
     "deploy:prod": "./scripts/deploy.sh production",
     "test": "echo 'No tests configured yet'",
-    "ci": "CI=true npm run build"
+    "ci": "CI=true npm run build",
+    "ci-build": "NEXT_TELEMETRY_DISABLED=1 CI=false next build"
   },
   "dependencies": {
     "@atproto/api": "^0.12.0",

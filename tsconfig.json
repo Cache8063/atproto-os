@@ -16,7 +16,8 @@
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "baseUrl": ".",
-    "paths": { "@/*": ["./src/*"] }
+    "paths": { "@/*": ["./src/*"] },
+    "forceConsistentCasingInFileNames": false
   },
   "include": [
     "next-env.d.ts", 
@@ -27,7 +28,7 @@
   "exclude": [
     "node_modules",
     ".next",
-    "dist",
+    "dist", 
     "build"
   ]
 }
